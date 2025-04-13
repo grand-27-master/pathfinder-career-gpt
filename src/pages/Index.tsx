@@ -1,11 +1,25 @@
-
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { FileUp, BriefcaseBusiness, MessagesSquare, Check } from 'lucide-react';
 import MainLayout from '@/components/Layout/MainLayout';
+import { toast } from '@/hooks/use-toast';
 
 const Index = () => {
+  const navigate = useNavigate();
+
+  const handleGetStarted = () => {
+    navigate('/dashboard');
+    toast({
+      title: "Welcome to CareerGPT!",
+      description: "You're now ready to start your career journey.",
+    });
+  };
+
+  const handleLearnMore = () => {
+    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <MainLayout>
       {/* Hero Section */}
@@ -20,19 +34,19 @@ const Index = () => {
                 Upload your resume, get personalized job matches, and ace your interviews with AI-powered coaching.
               </p>
               <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                <Button size="lg" className="bg-careerGpt-indigo hover:bg-careerGpt-indigo/90">
+                <Button size="lg" className="bg-careerGpt-indigo hover:bg-careerGpt-indigo/90" onClick={handleGetStarted}>
                   Get Started
                 </Button>
-                <Button size="lg" variant="outline">
+                <Button size="lg" variant="outline" onClick={handleLearnMore}>
                   Learn More
                 </Button>
               </div>
             </div>
             <div className="md:w-1/2">
               <img
-                src="/placeholder.svg"
-                alt="CareerGPT Dashboard Preview"
-                className="rounded-lg shadow-xl"
+                src="https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=600"
+                alt="Person using laptop for job search"
+                className="rounded-lg shadow-xl w-full h-auto object-cover"
                 width={600}
                 height={400}
               />
@@ -42,7 +56,7 @@ const Index = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-20">
+      <section className="py-20" id="features">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">How CareerGPT Helps Your Career</h2>
@@ -111,7 +125,7 @@ const Index = () => {
             <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
               Join thousands of professionals using CareerGPT to find better jobs and advance their careers.
             </p>
-            <Button size="lg" className="bg-white text-careerGpt-indigo hover:bg-gray-100">
+            <Button size="lg" className="bg-white text-careerGpt-indigo hover:bg-gray-100" onClick={handleGetStarted}>
               Get Started Now
             </Button>
           </div>

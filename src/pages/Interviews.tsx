@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessagesSquare, Send, User, Bot, Clock, Calendar, FileText } from 'lucide-react';
 import MainLayout from '@/components/Layout/MainLayout';
+import { toast } from '@/hooks/use-toast';
 
 const Interviews = () => {
   const [message, setMessage] = useState('');
@@ -53,6 +54,13 @@ const Interviews = () => {
     }
   };
 
+  const handleScheduleInterview = () => {
+    toast({
+      title: "Interview Scheduled",
+      description: "Your mock interview has been scheduled. Check the 'Scheduled Interviews' tab for details.",
+    });
+  };
+
   return (
     <MainLayout>
       <div className="container mx-auto px-4 py-8">
@@ -61,7 +69,10 @@ const Interviews = () => {
             <h1 className="text-3xl font-bold text-gray-900">Mock Interviews</h1>
             <p className="text-gray-600 mt-1">Practice interviews with AI and get personalized feedback</p>
           </div>
-          <Button className="mt-4 md:mt-0 bg-careerGpt-indigo hover:bg-careerGpt-indigo/90">
+          <Button 
+            className="mt-4 md:mt-0 bg-careerGpt-indigo hover:bg-careerGpt-indigo/90"
+            onClick={handleScheduleInterview}
+          >
             <Calendar className="mr-2 h-4 w-4" /> Schedule Interview
           </Button>
         </div>

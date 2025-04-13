@@ -1,13 +1,82 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { BriefcaseBusiness, Search, Filter, MapPin, Building, Clock, DollarSign } from 'lucide-react';
 import MainLayout from '@/components/Layout/MainLayout';
+import { Checkbox } from '@/components/ui/checkbox';
+import { toast } from '@/hooks/use-toast';
 
 const Jobs = () => {
+  // State for filters
+  const [jobTypeFilters, setJobTypeFilters] = useState({
+    fulltime: false,
+    parttime: false,
+    contract: false,
+    remote: false,
+  });
+
+  const [experienceLevelFilters, setExperienceLevelFilters] = useState({
+    entry: false,
+    mid: false,
+    senior: false,
+    executive: false,
+  });
+
+  // Handle job type filter change
+  const handleJobTypeChange = (id: keyof typeof jobTypeFilters) => {
+    setJobTypeFilters(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  // Handle experience level filter change
+  const handleExperienceLevelChange = (id: keyof typeof experienceLevelFilters) => {
+    setExperienceLevelFilters(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  // Handle apply now button click
+  const handleApplyNow = (jobTitle: string) => {
+    toast({
+      title: "Application Submitted",
+      description: `You've applied for the ${jobTitle} position.`,
+    });
+  };
+
+  // Handle save job button click
+  const handleSaveJob = (jobTitle: string) => {
+    toast({
+      title: "Job Saved",
+      description: `You've saved the ${jobTitle} position to your favorites.`,
+    });
+  };
+
+  // Handle reset filters
+  const handleResetFilters = () => {
+    setJobTypeFilters({
+      fulltime: false,
+      parttime: false,
+      contract: false,
+      remote: false,
+    });
+    setExperienceLevelFilters({
+      entry: false,
+      mid: false,
+      senior: false,
+      executive: false,
+    });
+    toast({
+      title: "Filters Reset",
+      description: "All job filters have been reset.",
+    });
+  };
+
   return (
     <MainLayout>
       <div className="container mx-auto px-4 py-8">
@@ -58,10 +127,17 @@ const Jobs = () => {
                     Job Type
                   </label>
                   <div className="space-y-2">
-                    <FilterCheckbox id="fulltime" label="Full-time" />
-                    <FilterCheckbox id="parttime" label="Part-time" />
-                    <FilterCheckbox id="contract" label="Contract" />
-                    <FilterCheckbox id="remote" label="Remote" />
+                    {Object.entries(jobTypeFilters).map(([id, checked]) => (
+                      <FilterCheckbox 
+                        key={id} 
+                        id={id} 
+                        label={id === 'fulltime' ? 'Full-time' : 
+                              id === 'parttime' ? 'Part-time' : 
+                              id === 'contract' ? 'Contract' : 'Remote'} 
+                        checked={checked}
+                        onCheckedChange={() => handleJobTypeChange(id as keyof typeof jobTypeFilters)}
+                      />
+                    ))}
                   </div>
                 </div>
 
@@ -70,15 +146,22 @@ const Jobs = () => {
                     Experience Level
                   </label>
                   <div className="space-y-2">
-                    <FilterCheckbox id="entry" label="Entry Level" />
-                    <FilterCheckbox id="mid" label="Mid Level" />
-                    <FilterCheckbox id="senior" label="Senior Level" />
-                    <FilterCheckbox id="executive" label="Executive" />
+                    {Object.entries(experienceLevelFilters).map(([id, checked]) => (
+                      <FilterCheckbox 
+                        key={id} 
+                        id={id} 
+                        label={id === 'entry' ? 'Entry Level' : 
+                              id === 'mid' ? 'Mid Level' : 
+                              id === 'senior' ? 'Senior Level' : 'Executive'} 
+                        checked={checked}
+                        onCheckedChange={() => handleExperienceLevelChange(id as keyof typeof experienceLevelFilters)}
+                      />
+                    ))}
                   </div>
                 </div>
               </CardContent>
               <CardFooter>
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" onClick={handleResetFilters}>
                   Reset Filters
                 </Button>
               </CardFooter>
@@ -113,6 +196,8 @@ const Jobs = () => {
                 postedTime="3 days ago"
                 description="We're looking for a senior frontend developer with expertise in React, TypeScript, and modern web technologies to join our growing team."
                 skills={["React", "TypeScript", "Redux", "CSS", "HTML"]}
+                onApply={() => handleApplyNow("Senior Frontend Developer")}
+                onSave={() => handleSaveJob("Senior Frontend Developer")}
               />
               
               <JobListingCard
@@ -124,6 +209,8 @@ const Jobs = () => {
                 postedTime="1 week ago"
                 description="Join our innovative startup as a full stack engineer working on cutting-edge web applications with modern technologies."
                 skills={["JavaScript", "Node.js", "React", "MongoDB", "AWS"]}
+                onApply={() => handleApplyNow("Full Stack Engineer")}
+                onSave={() => handleSaveJob("Full Stack Engineer")}
               />
               
               <JobListingCard
@@ -135,6 +222,8 @@ const Jobs = () => {
                 postedTime="2 days ago"
                 description="InnovateSoft is hiring React developers to build beautiful, responsive web applications for our enterprise clients."
                 skills={["React", "JavaScript", "CSS", "UI/UX", "GraphQL"]}
+                onApply={() => handleApplyNow("React Developer")}
+                onSave={() => handleSaveJob("React Developer")}
               />
               
               <JobListingCard
@@ -146,6 +235,8 @@ const Jobs = () => {
                 postedTime="5 days ago"
                 description="Looking for a JavaScript engineer to help build and maintain our growing suite of web applications."
                 skills={["JavaScript", "HTML", "CSS", "Vue.js", "REST APIs"]}
+                onApply={() => handleApplyNow("JavaScript Engineer")}
+                onSave={() => handleSaveJob("JavaScript Engineer")}
               />
               
               <JobListingCard
@@ -157,6 +248,8 @@ const Jobs = () => {
                 postedTime="2 weeks ago"
                 description="DesignFirm is seeking a Frontend Architect to lead our frontend development strategy and implementation."
                 skills={["JavaScript", "Architecture", "Performance", "React", "Design Systems"]}
+                onApply={() => handleApplyNow("Frontend Architect")}
+                onSave={() => handleSaveJob("Frontend Architect")}
               />
               
               <div className="flex justify-center mt-8">
@@ -175,16 +268,18 @@ const Jobs = () => {
 interface FilterCheckboxProps {
   id: string;
   label: string;
+  checked: boolean;
+  onCheckedChange: () => void;
 }
 
-const FilterCheckbox = ({ id, label }: FilterCheckboxProps) => (
-  <div className="flex items-center">
-    <input
-      id={id}
-      type="checkbox"
-      className="h-4 w-4 text-careerGpt-indigo focus:ring-careerGpt-indigo border-gray-300 rounded"
+const FilterCheckbox = ({ id, label, checked, onCheckedChange }: FilterCheckboxProps) => (
+  <div className="flex items-center space-x-2">
+    <Checkbox 
+      id={id} 
+      checked={checked} 
+      onCheckedChange={onCheckedChange} 
     />
-    <label htmlFor={id} className="ml-2 block text-sm text-gray-700">
+    <label htmlFor={id} className="text-sm text-gray-700 cursor-pointer">
       {label}
     </label>
   </div>
@@ -199,6 +294,8 @@ interface JobListingCardProps {
   postedTime: string;
   description: string;
   skills: string[];
+  onApply: () => void;
+  onSave: () => void;
 }
 
 const JobListingCard = ({
@@ -210,6 +307,8 @@ const JobListingCard = ({
   postedTime,
   description,
   skills,
+  onApply,
+  onSave,
 }: JobListingCardProps) => (
   <Card>
     <CardHeader className="pb-4">
@@ -252,10 +351,10 @@ const JobListingCard = ({
       </div>
     </CardContent>
     <CardFooter className="flex flex-col sm:flex-row gap-3 justify-between">
-      <Button className="w-full sm:w-auto bg-careerGpt-indigo hover:bg-careerGpt-indigo/90">
+      <Button className="w-full sm:w-auto bg-careerGpt-indigo hover:bg-careerGpt-indigo/90" onClick={onApply}>
         Apply Now
       </Button>
-      <Button variant="outline" className="w-full sm:w-auto">
+      <Button variant="outline" className="w-full sm:w-auto" onClick={onSave}>
         Save Job
       </Button>
     </CardFooter>
