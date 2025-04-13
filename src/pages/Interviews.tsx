@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessagesSquare, Send, User, Bot, Clock, Calendar, FileText } from 'lucide-react';
+import { MessagesSquare, Send, User, Bot, Clock, Calendar, FileText, RefreshCw, StopCircle } from 'lucide-react';
 import MainLayout from '@/components/Layout/MainLayout';
 import { toast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -62,7 +62,6 @@ const Interviews = () => {
 
   const handleSendMessage = () => {
     if (message.trim()) {
-      // Add user message
       const userTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       setChatMessages([
         ...chatMessages,
@@ -73,40 +72,34 @@ const Interviews = () => {
         }
       ]);
       
-      // Clear input
       setMessage('');
       
-      // Generate AI response based on user's message
-      setTimeout(() => {
-        let aiResponse = "";
-        const questions = sampleQuestions[interviewType as keyof typeof sampleQuestions] || sampleQuestions.frontend;
-        
-        // If this is the beginning of the interview
-        if (chatMessages.length <= 1) {
-          aiResponse = "Great! Let's start with the first question:\n\n" + questions[0];
-          setQuestionIndex(1);
-        } 
-        // If we still have questions left
-        else if (questionIndex < questions.length) {
-          // Provide feedback on previous answer, then ask next question
-          aiResponse = `That's a thoughtful response! Here's my feedback: your answer was ${message.length > 100 ? 'detailed and thorough' : 'concise but could use more examples'}.\n\nNext question:\n${questions[questionIndex]}`;
-          setQuestionIndex(questionIndex + 1);
-        } 
-        // If we've gone through all questions
-        else {
-          aiResponse = "Thank you for completing this mock interview! Overall, your responses were insightful. To improve, consider providing more specific examples from your experience and structuring your answers using the STAR method (Situation, Task, Action, Result). Would you like to try another interview type?";
+      if (!isInterviewActive) return;
+      
+      let aiResponse = "";
+      const questions = sampleQuestions[interviewType as keyof typeof sampleQuestions] || sampleQuestions.frontend;
+      
+      if (chatMessages.length <= 1) {
+        aiResponse = "Great! Let's start with the first question:\n\n" + questions[0];
+        setQuestionIndex(1);
+      } 
+      else if (questionIndex < questions.length) {
+        aiResponse = `That's a thoughtful response! Here's my feedback: your answer was ${message.length > 100 ? 'detailed and thorough' : 'concise but could use more examples'}.\n\nNext question:\n${questions[questionIndex]}`;
+        setQuestionIndex(questionIndex + 1);
+      } 
+      else {
+        aiResponse = "Thank you for completing this mock interview! Overall, your responses were insightful. To improve, consider providing more specific examples from your experience and structuring your answers using the STAR method (Situation, Task, Action, Result). Would you like to try another interview type?";
+      }
+      
+      const aiTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setChatMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: aiResponse,
+          timestamp: aiTimestamp
         }
-        
-        const aiTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        setChatMessages(prev => [
-          ...prev,
-          {
-            role: 'assistant',
-            content: aiResponse,
-            timestamp: aiTimestamp
-          }
-        ]);
-      }, 1000);
+      ]);
     }
   };
 
@@ -121,18 +114,27 @@ const Interviews = () => {
     e.preventDefault();
     setShowScheduleDialog(false);
     
-    // In a real app, this would save the interview details to a database
     toast({
       title: "Interview Scheduled",
       description: "Your mock interview has been scheduled. Check the 'Scheduled Interviews' tab for details.",
     });
     
-    // Switch to the scheduled tab
     setSelectedTab('scheduled');
   };
   
   const handleEndInterview = () => {
     setIsInterviewActive(false);
+    
+    const endTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setChatMessages(prev => [
+      ...prev,
+      {
+        role: 'assistant',
+        content: "This interview has been ended. Thank you for participating. You can view the interview transcript and feedback in the History tab or reset the interview to start again.",
+        timestamp: endTimestamp
+      }
+    ]);
+    
     toast({
       title: "Interview Ended",
       description: "Your interview has been ended. You can view the feedback in the History tab.",
@@ -140,6 +142,10 @@ const Interviews = () => {
   };
   
   const handleResetInterview = () => {
+    setIsInterviewActive(true);
+    setQuestionIndex(0);
+    setInterviewType('frontend');
+    
     setChatMessages([
       {
         role: 'assistant',
@@ -147,8 +153,7 @@ const Interviews = () => {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
     ]);
-    setIsInterviewActive(true);
-    setQuestionIndex(0);
+    
     toast({
       title: "Interview Reset",
       description: "The interview has been reset. You can start fresh now.",
@@ -157,7 +162,6 @@ const Interviews = () => {
 
   const handleInterviewTypeChange = (value: string) => {
     setInterviewType(value);
-    // In a real implementation, you would reset the interview or adapt questions
   };
 
   return (
@@ -283,7 +287,7 @@ const Interviews = () => {
                   <CardFooter className="border-t">
                     <div className="flex w-full items-center space-x-2">
                       <Input
-                        placeholder="Type your response..."
+                        placeholder={isInterviewActive ? "Type your response..." : "Interview has ended. Reset to start again."}
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         onKeyDown={handleKeyDown}
@@ -295,6 +299,7 @@ const Interviews = () => {
                         size="icon" 
                         onClick={handleSendMessage}
                         disabled={!isInterviewActive}
+                        className={!isInterviewActive ? "opacity-50 cursor-not-allowed" : ""}
                       >
                         <Send className="h-4 w-4" />
                       </Button>
@@ -343,14 +348,16 @@ const Interviews = () => {
                     </div>
                   </CardContent>
                   <CardFooter className="flex flex-col space-y-4">
-                    <Button variant="outline" className="w-full" onClick={handleEndInterview} disabled={!isInterviewActive}>
+                    <Button variant="outline" className="w-full flex items-center justify-center" onClick={handleEndInterview} disabled={!isInterviewActive}>
+                      <StopCircle className="h-4 w-4 mr-2" />
                       End Interview
                     </Button>
                     <Button 
                       variant="ghost" 
-                      className="w-full text-red-500 hover:text-red-700 hover:bg-red-50"
+                      className="w-full text-red-500 hover:text-red-700 hover:bg-red-50 flex items-center justify-center"
                       onClick={handleResetInterview}
                     >
+                      <RefreshCw className="h-4 w-4 mr-2" />
                       Reset Interview
                     </Button>
                   </CardFooter>
