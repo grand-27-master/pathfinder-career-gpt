@@ -44,7 +44,7 @@ const Index = () => {
             </div>
             <div className="md:w-1/2">
               <img
-                src="https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=600"
+                src="https://images.unsplash.com/photo-1573497620053-ea5300f94f21?auto=format&fit=crop&w=600"
                 alt="Person using laptop for job search"
                 className="rounded-lg shadow-xl w-full h-auto object-cover"
                 width={600}

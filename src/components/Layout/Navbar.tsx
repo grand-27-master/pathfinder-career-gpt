@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { BriefcaseBusiness, MessagesSquare, FileStack, Menu, X } from 'lucide-react';
+import { BriefcaseBusiness, MessagesSquare, FileStack, Menu, X, FileText } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const Navbar = () => {
@@ -38,6 +38,7 @@ const Navbar = () => {
                   <NavLink to="/dashboard" icon={<FileStack size={18} />} onClick={() => setIsMenuOpen(false)}>Dashboard</NavLink>
                   <NavLink to="/jobs" icon={<BriefcaseBusiness size={18} />} onClick={() => setIsMenuOpen(false)}>Jobs</NavLink>
                   <NavLink to="/interviews" icon={<MessagesSquare size={18} />} onClick={() => setIsMenuOpen(false)}>Interviews</NavLink>
+                  <NavLink to="/resumes" icon={<FileText size={18} />} onClick={() => setIsMenuOpen(false)}>Resumes</NavLink>
                   <div className="pt-2 border-t border-gray-100">
                     <Button variant="default" className="w-full">Sign In</Button>
                   </div>
@@ -51,6 +52,7 @@ const Navbar = () => {
               <NavLink to="/dashboard" icon={<FileStack size={18} />}>Dashboard</NavLink>
               <NavLink to="/jobs" icon={<BriefcaseBusiness size={18} />}>Jobs</NavLink>
               <NavLink to="/interviews" icon={<MessagesSquare size={18} />}>Interviews</NavLink>
+              <NavLink to="/resumes" icon={<FileText size={18} />}>Resumes</NavLink>
             </nav>
             <Button variant="default">Sign In</Button>
           </div>

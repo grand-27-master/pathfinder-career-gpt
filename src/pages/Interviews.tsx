@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,9 +6,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessagesSquare, Send, User, Bot, Clock, Calendar, FileText } from 'lucide-react';
 import MainLayout from '@/components/Layout/MainLayout';
 import { toast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const Interviews = () => {
   const [message, setMessage] = useState('');
+  const [selectedTab, setSelectedTab] = useState('simulator');
+  const [isInterviewActive, setIsInterviewActive] = useState(true);
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string; timestamp: string }[]>([
     {
       role: 'assistant',
@@ -33,7 +38,7 @@ const Interviews = () => {
       // Clear input
       setMessage('');
       
-      // Simulate AI response (would be replaced with actual API call)
+      // Simulate AI response
       setTimeout(() => {
         setChatMessages(prev => [
           ...prev,
@@ -54,10 +59,39 @@ const Interviews = () => {
     }
   };
 
-  const handleScheduleInterview = () => {
+  const handleScheduleInterview = (dialogData: any) => {
+    setShowScheduleDialog(false);
+    
+    // In a real app, this would save the interview details to a database
     toast({
       title: "Interview Scheduled",
       description: "Your mock interview has been scheduled. Check the 'Scheduled Interviews' tab for details.",
+    });
+    
+    // Switch to the scheduled tab
+    setSelectedTab('scheduled');
+  };
+  
+  const handleEndInterview = () => {
+    setIsInterviewActive(false);
+    toast({
+      title: "Interview Ended",
+      description: "Your interview has been ended. You can view the feedback in the History tab.",
+    });
+  };
+  
+  const handleResetInterview = () => {
+    setChatMessages([
+      {
+        role: 'assistant',
+        content: "Hello! I'm your interview coach for today. We'll be conducting a mock interview for a Frontend Developer position. Are you ready to begin?",
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+    ]);
+    setIsInterviewActive(true);
+    toast({
+      title: "Interview Reset",
+      description: "The interview has been reset. You can start fresh now.",
     });
   };
 
@@ -69,15 +103,66 @@ const Interviews = () => {
             <h1 className="text-3xl font-bold text-gray-900">Mock Interviews</h1>
             <p className="text-gray-600 mt-1">Practice interviews with AI and get personalized feedback</p>
           </div>
-          <Button 
-            className="mt-4 md:mt-0 bg-careerGpt-indigo hover:bg-careerGpt-indigo/90"
-            onClick={handleScheduleInterview}
-          >
-            <Calendar className="mr-2 h-4 w-4" /> Schedule Interview
-          </Button>
+          <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
+            <DialogTrigger asChild>
+              <Button 
+                className="mt-4 md:mt-0 bg-careerGpt-indigo hover:bg-careerGpt-indigo/90"
+              >
+                <Calendar className="mr-2 h-4 w-4" /> Schedule Interview
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Schedule Mock Interview</DialogTitle>
+                <DialogDescription>
+                  Select a date, time, and type of interview you'd like to practice.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label className="text-right text-sm font-medium col-span-1">Date</label>
+                  <Input type="date" className="col-span-3" defaultValue={new Date().toISOString().split('T')[0]} />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label className="text-right text-sm font-medium col-span-1">Time</label>
+                  <Input type="time" className="col-span-3" defaultValue="10:00" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label className="text-right text-sm font-medium col-span-1">Type</label>
+                  <Select defaultValue="technical">
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select interview type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="technical">Technical</SelectItem>
+                      <SelectItem value="behavioral">Behavioral</SelectItem>
+                      <SelectItem value="mix">Mixed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label className="text-right text-sm font-medium col-span-1">Position</label>
+                  <Select defaultValue="frontend">
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select position" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="frontend">Frontend Developer</SelectItem>
+                      <SelectItem value="backend">Backend Developer</SelectItem>
+                      <SelectItem value="fullstack">Full Stack Developer</SelectItem>
+                      <SelectItem value="design">UI/UX Designer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit" onClick={handleScheduleInterview}>Schedule</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
-        <Tabs defaultValue="simulator" className="w-full">
+        <Tabs defaultValue="simulator" value={selectedTab} onValueChange={setSelectedTab}>
           <TabsList className="mb-8">
             <TabsTrigger value="simulator" className="text-sm sm:text-base">
               <MessagesSquare className="h-4 w-4 mr-2" /> Interview Simulator
@@ -138,8 +223,14 @@ const Interviews = () => {
                         onChange={(e) => setMessage(e.target.value)}
                         onKeyDown={handleKeyDown}
                         className="flex-1"
+                        disabled={!isInterviewActive}
                       />
-                      <Button type="submit" size="icon" onClick={handleSendMessage}>
+                      <Button 
+                        type="submit" 
+                        size="icon" 
+                        onClick={handleSendMessage}
+                        disabled={!isInterviewActive}
+                      >
                         <Send className="h-4 w-4" />
                       </Button>
                     </div>
@@ -187,10 +278,14 @@ const Interviews = () => {
                     </div>
                   </CardContent>
                   <CardFooter className="flex flex-col space-y-4">
-                    <Button variant="outline" className="w-full">
+                    <Button variant="outline" className="w-full" onClick={handleEndInterview} disabled={!isInterviewActive}>
                       End Interview
                     </Button>
-                    <Button variant="ghost" className="w-full text-red-500 hover:text-red-700 hover:bg-red-50">
+                    <Button 
+                      variant="ghost" 
+                      className="w-full text-red-500 hover:text-red-700 hover:bg-red-50"
+                      onClick={handleResetInterview}
+                    >
                       Reset Interview
                     </Button>
                   </CardFooter>
@@ -217,7 +312,7 @@ const Interviews = () => {
                 interviewType="Behavioral"
               />
               
-              <Card className="bg-gray-50 border-dashed border-2 flex flex-col items-center justify-center py-8 hover:bg-gray-100 transition-colors cursor-pointer">
+              <Card className="bg-gray-50 border-dashed border-2 flex flex-col items-center justify-center py-8 hover:bg-gray-100 transition-colors cursor-pointer" onClick={() => setShowScheduleDialog(true)}>
                 <Calendar className="h-10 w-10 text-gray-400 mb-2" />
                 <p className="text-gray-600 font-medium">Schedule New Interview</p>
               </Card>

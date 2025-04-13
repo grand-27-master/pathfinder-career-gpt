@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +7,19 @@ import { BriefcaseBusiness, Search, Filter, MapPin, Building, Clock, DollarSign 
 import MainLayout from '@/components/Layout/MainLayout';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
+
+type Job = {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  salary: string;
+  matchScore: number;
+  postedTime: string;
+  description: string;
+  skills: string[];
+  applyUrl: string;
+};
 
 const Jobs = () => {
   // State for filters
@@ -24,6 +36,72 @@ const Jobs = () => {
     senior: false,
     executive: false,
   });
+
+  const [sortBy, setSortBy] = useState('matchScore');
+  const [jobsData, setJobsData] = useState<Job[]>([
+    {
+      id: "1",
+      title: "Senior Frontend Developer",
+      company: "TechCorp Inc.",
+      location: "Remote",
+      salary: "$120K - $150K",
+      matchScore: 92,
+      postedTime: "3 days ago",
+      description: "We're looking for a senior frontend developer with expertise in React, TypeScript, and modern web technologies to join our growing team.",
+      skills: ["React", "TypeScript", "Redux", "CSS", "HTML"],
+      applyUrl: "https://example.com/jobs/frontend-dev"
+    },
+    {
+      id: "2",
+      title: "Full Stack Engineer",
+      company: "StartupXYZ",
+      location: "New York, NY",
+      salary: "$110K - $140K",
+      matchScore: 87,
+      postedTime: "1 week ago",
+      description: "Join our innovative startup as a full stack engineer working on cutting-edge web applications with modern technologies.",
+      skills: ["JavaScript", "Node.js", "React", "MongoDB", "AWS"],
+      applyUrl: "https://example.com/jobs/fullstack"
+    },
+    {
+      id: "3",
+      title: "React Developer",
+      company: "InnovateSoft",
+      location: "San Francisco, CA",
+      salary: "$100K - $130K",
+      matchScore: 84,
+      postedTime: "2 days ago",
+      description: "InnovateSoft is hiring React developers to build beautiful, responsive web applications for our enterprise clients.",
+      skills: ["React", "JavaScript", "CSS", "UI/UX", "GraphQL"],
+      applyUrl: "https://example.com/jobs/react-dev"
+    },
+    {
+      id: "4",
+      title: "JavaScript Engineer",
+      company: "WebSolutions",
+      location: "Austin, TX",
+      salary: "$90K - $120K",
+      matchScore: 79,
+      postedTime: "5 days ago",
+      description: "Looking for a JavaScript engineer to help build and maintain our growing suite of web applications.",
+      skills: ["JavaScript", "HTML", "CSS", "Vue.js", "REST APIs"],
+      applyUrl: "https://example.com/jobs/js-engineer"
+    },
+    {
+      id: "5",
+      title: "Frontend Architect",
+      company: "DesignFirm",
+      location: "Seattle, WA",
+      salary: "$130K - $160K",
+      matchScore: 74,
+      postedTime: "2 weeks ago",
+      description: "DesignFirm is seeking a Frontend Architect to lead our frontend development strategy and implementation.",
+      skills: ["JavaScript", "Architecture", "Performance", "React", "Design Systems"],
+      applyUrl: "https://example.com/jobs/frontend-architect"
+    }
+  ]);
+  
+  const [displayedJobs, setDisplayedJobs] = useState(3);
 
   // Handle job type filter change
   const handleJobTypeChange = (id: keyof typeof jobTypeFilters) => {
@@ -42,11 +120,12 @@ const Jobs = () => {
   };
 
   // Handle apply now button click
-  const handleApplyNow = (jobTitle: string) => {
+  const handleApplyNow = (jobTitle: string, applyUrl: string) => {
     toast({
-      title: "Application Submitted",
-      description: `You've applied for the ${jobTitle} position.`,
+      title: "Application Started",
+      description: `You're being redirected to the ${jobTitle} job application page.`,
     });
+    window.open(applyUrl, '_blank');
   };
 
   // Handle save job button click
@@ -76,6 +155,48 @@ const Jobs = () => {
       description: "All job filters have been reset.",
     });
   };
+  
+  // Handle sort by change
+  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const sortValue = e.target.value;
+    setSortBy(sortValue);
+    
+    let sortedJobs = [...jobsData];
+    
+    if (sortValue === 'matchScore') {
+      sortedJobs.sort((a, b) => b.matchScore - a.matchScore);
+    } else if (sortValue === 'datePosted') {
+      sortedJobs.sort((a, b) => {
+        // Simple sort by string comparison for this demo
+        // In a real app, you'd parse the dates properly
+        return a.postedTime.localeCompare(b.postedTime);
+      });
+    } else if (sortValue === 'company') {
+      sortedJobs.sort((a, b) => a.company.localeCompare(b.company));
+    } else if (sortValue === 'location') {
+      sortedJobs.sort((a, b) => a.location.localeCompare(b.location));
+    }
+    
+    setJobsData(sortedJobs);
+  };
+  
+  const handleLoadMore = () => {
+    if (displayedJobs < jobsData.length) {
+      setDisplayedJobs(Math.min(displayedJobs + 2, jobsData.length));
+      toast({
+        title: "More Jobs Loaded",
+        description: "Additional job listings have been loaded.",
+      });
+    } else {
+      toast({
+        title: "No More Jobs",
+        description: "All available job listings are displayed.",
+      });
+    }
+  };
+
+  // Displayed jobs
+  const visibleJobs = jobsData.slice(0, displayedJobs);
 
   return (
     <MainLayout>
@@ -177,86 +298,43 @@ const Jobs = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-600">Sort by:</span>
-                <select className="bg-white border border-gray-300 text-gray-700 text-sm rounded px-3 py-1.5 focus:ring-careerGpt-indigo focus:border-careerGpt-indigo">
-                  <option>Match Score</option>
-                  <option>Date Posted</option>
-                  <option>Company</option>
-                  <option>Location</option>
+                <select 
+                  className="bg-white border border-gray-300 text-gray-700 text-sm rounded px-3 py-1.5 focus:ring-careerGpt-indigo focus:border-careerGpt-indigo"
+                  value={sortBy}
+                  onChange={handleSortChange}
+                >
+                  <option value="matchScore">Match Score</option>
+                  <option value="datePosted">Date Posted</option>
+                  <option value="company">Company</option>
+                  <option value="location">Location</option>
                 </select>
               </div>
             </div>
 
             <div className="space-y-6">
-              <JobListingCard
-                title="Senior Frontend Developer"
-                company="TechCorp Inc."
-                location="Remote"
-                salary="$120K - $150K"
-                matchScore={92}
-                postedTime="3 days ago"
-                description="We're looking for a senior frontend developer with expertise in React, TypeScript, and modern web technologies to join our growing team."
-                skills={["React", "TypeScript", "Redux", "CSS", "HTML"]}
-                onApply={() => handleApplyNow("Senior Frontend Developer")}
-                onSave={() => handleSaveJob("Senior Frontend Developer")}
-              />
+              {visibleJobs.map(job => (
+                <JobListingCard
+                  key={job.id}
+                  title={job.title}
+                  company={job.company}
+                  location={job.location}
+                  salary={job.salary}
+                  matchScore={job.matchScore}
+                  postedTime={job.postedTime}
+                  description={job.description}
+                  skills={job.skills}
+                  onApply={() => handleApplyNow(job.title, job.applyUrl)}
+                  onSave={() => handleSaveJob(job.title)}
+                />
+              ))}
               
-              <JobListingCard
-                title="Full Stack Engineer"
-                company="StartupXYZ"
-                location="New York, NY"
-                salary="$110K - $140K"
-                matchScore={87}
-                postedTime="1 week ago"
-                description="Join our innovative startup as a full stack engineer working on cutting-edge web applications with modern technologies."
-                skills={["JavaScript", "Node.js", "React", "MongoDB", "AWS"]}
-                onApply={() => handleApplyNow("Full Stack Engineer")}
-                onSave={() => handleSaveJob("Full Stack Engineer")}
-              />
-              
-              <JobListingCard
-                title="React Developer"
-                company="InnovateSoft"
-                location="San Francisco, CA"
-                salary="$100K - $130K"
-                matchScore={84}
-                postedTime="2 days ago"
-                description="InnovateSoft is hiring React developers to build beautiful, responsive web applications for our enterprise clients."
-                skills={["React", "JavaScript", "CSS", "UI/UX", "GraphQL"]}
-                onApply={() => handleApplyNow("React Developer")}
-                onSave={() => handleSaveJob("React Developer")}
-              />
-              
-              <JobListingCard
-                title="JavaScript Engineer"
-                company="WebSolutions"
-                location="Austin, TX"
-                salary="$90K - $120K"
-                matchScore={79}
-                postedTime="5 days ago"
-                description="Looking for a JavaScript engineer to help build and maintain our growing suite of web applications."
-                skills={["JavaScript", "HTML", "CSS", "Vue.js", "REST APIs"]}
-                onApply={() => handleApplyNow("JavaScript Engineer")}
-                onSave={() => handleSaveJob("JavaScript Engineer")}
-              />
-              
-              <JobListingCard
-                title="Frontend Architect"
-                company="DesignFirm"
-                location="Seattle, WA"
-                salary="$130K - $160K"
-                matchScore={74}
-                postedTime="2 weeks ago"
-                description="DesignFirm is seeking a Frontend Architect to lead our frontend development strategy and implementation."
-                skills={["JavaScript", "Architecture", "Performance", "React", "Design Systems"]}
-                onApply={() => handleApplyNow("Frontend Architect")}
-                onSave={() => handleSaveJob("Frontend Architect")}
-              />
-              
-              <div className="flex justify-center mt-8">
-                <Button className="bg-careerGpt-indigo hover:bg-careerGpt-indigo/90">
-                  Load More Jobs
-                </Button>
-              </div>
+              {displayedJobs < jobsData.length && (
+                <div className="flex justify-center mt-8">
+                  <Button className="bg-careerGpt-indigo hover:bg-careerGpt-indigo/90" onClick={handleLoadMore}>
+                    Load More Jobs
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
