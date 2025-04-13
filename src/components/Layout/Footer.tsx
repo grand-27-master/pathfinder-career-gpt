@@ -22,27 +22,27 @@ const Footer = () => {
             <div>
               <h3 className="font-medium text-gray-900 mb-3">Product</h3>
               <ul className="space-y-2">
-                <FooterLink to="/features">Features</FooterLink>
-                <FooterLink to="/pricing">Pricing</FooterLink>
-                <FooterLink to="/about">About Us</FooterLink>
+                <FooterLink to="/dashboard">Features</FooterLink>
+                <FooterLink to="/dashboard">Pricing</FooterLink>
+                <FooterLink to="/dashboard">About Us</FooterLink>
               </ul>
             </div>
             
             <div>
               <h3 className="font-medium text-gray-900 mb-3">Resources</h3>
               <ul className="space-y-2">
-                <FooterLink to="/blog">Blog</FooterLink>
-                <FooterLink to="/help">Help Center</FooterLink>
-                <FooterLink to="/contact">Contact</FooterLink>
+                <FooterLink to="/dashboard">Blog</FooterLink>
+                <FooterLink to="/dashboard">Help Center</FooterLink>
+                <FooterLink to="/dashboard">Contact</FooterLink>
               </ul>
             </div>
             
             <div>
               <h3 className="font-medium text-gray-900 mb-3">Legal</h3>
               <ul className="space-y-2">
-                <FooterLink to="/privacy">Privacy</FooterLink>
-                <FooterLink to="/terms">Terms</FooterLink>
-                <FooterLink to="/cookies">Cookies</FooterLink>
+                <FooterLink to="/dashboard">Privacy</FooterLink>
+                <FooterLink to="/dashboard">Terms</FooterLink>
+                <FooterLink to="/dashboard">Cookies</FooterLink>
               </ul>
             </div>
           </div>

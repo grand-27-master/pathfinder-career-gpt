@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,8 @@ type Job = {
   description: string;
   skills: string[];
   applyUrl: string;
+  jobType: string[];
+  experienceLevel: string;
 };
 
 const Jobs = () => {
@@ -38,7 +41,11 @@ const Jobs = () => {
   });
 
   const [sortBy, setSortBy] = useState('matchScore');
-  const [jobsData, setJobsData] = useState<Job[]>([
+  const [searchTerm, setSearchTerm] = useState('');
+  const [location, setLocation] = useState('');
+  const [minMatchScore, setMinMatchScore] = useState(70);
+  
+  const [allJobs, setAllJobs] = useState<Job[]>([
     {
       id: "1",
       title: "Senior Frontend Developer",
@@ -49,7 +56,9 @@ const Jobs = () => {
       postedTime: "3 days ago",
       description: "We're looking for a senior frontend developer with expertise in React, TypeScript, and modern web technologies to join our growing team.",
       skills: ["React", "TypeScript", "Redux", "CSS", "HTML"],
-      applyUrl: "https://example.com/jobs/frontend-dev"
+      applyUrl: "https://example.com/jobs/frontend-dev",
+      jobType: ["fulltime", "remote"],
+      experienceLevel: "senior"
     },
     {
       id: "2",
@@ -61,7 +70,9 @@ const Jobs = () => {
       postedTime: "1 week ago",
       description: "Join our innovative startup as a full stack engineer working on cutting-edge web applications with modern technologies.",
       skills: ["JavaScript", "Node.js", "React", "MongoDB", "AWS"],
-      applyUrl: "https://example.com/jobs/fullstack"
+      applyUrl: "https://example.com/jobs/fullstack",
+      jobType: ["fulltime"],
+      experienceLevel: "mid"
     },
     {
       id: "3",
@@ -73,7 +84,9 @@ const Jobs = () => {
       postedTime: "2 days ago",
       description: "InnovateSoft is hiring React developers to build beautiful, responsive web applications for our enterprise clients.",
       skills: ["React", "JavaScript", "CSS", "UI/UX", "GraphQL"],
-      applyUrl: "https://example.com/jobs/react-dev"
+      applyUrl: "https://example.com/jobs/react-dev",
+      jobType: ["contract", "parttime"],
+      experienceLevel: "mid"
     },
     {
       id: "4",
@@ -85,7 +98,9 @@ const Jobs = () => {
       postedTime: "5 days ago",
       description: "Looking for a JavaScript engineer to help build and maintain our growing suite of web applications.",
       skills: ["JavaScript", "HTML", "CSS", "Vue.js", "REST APIs"],
-      applyUrl: "https://example.com/jobs/js-engineer"
+      applyUrl: "https://example.com/jobs/js-engineer",
+      jobType: ["fulltime"],
+      experienceLevel: "entry"
     },
     {
       id: "5",
@@ -97,11 +112,122 @@ const Jobs = () => {
       postedTime: "2 weeks ago",
       description: "DesignFirm is seeking a Frontend Architect to lead our frontend development strategy and implementation.",
       skills: ["JavaScript", "Architecture", "Performance", "React", "Design Systems"],
-      applyUrl: "https://example.com/jobs/frontend-architect"
+      applyUrl: "https://example.com/jobs/frontend-architect",
+      jobType: ["fulltime"],
+      experienceLevel: "executive"
+    },
+    {
+      id: "6",
+      title: "UI/UX Developer",
+      company: "CreativeAgency",
+      location: "Remote",
+      salary: "$95K - $125K",
+      matchScore: 81,
+      postedTime: "4 days ago",
+      description: "Join our creative team to build stunning user interfaces with a focus on exceptional user experience.",
+      skills: ["React", "CSS", "UI/UX Design", "Figma", "Responsive Design"],
+      applyUrl: "https://example.com/jobs/ui-ux-dev",
+      jobType: ["remote", "fulltime"],
+      experienceLevel: "mid"
+    },
+    {
+      id: "7",
+      title: "Part-time React Developer",
+      company: "FlexTech",
+      location: "Chicago, IL (Hybrid)",
+      salary: "$60K - $80K",
+      matchScore: 82,
+      postedTime: "1 day ago",
+      description: "Seeking a part-time React developer to help with ongoing projects and maintenance of existing applications.",
+      skills: ["React", "JavaScript", "Redux", "REST APIs"],
+      applyUrl: "https://example.com/jobs/part-time-react",
+      jobType: ["parttime"],
+      experienceLevel: "entry"
+    },
+    {
+      id: "8",
+      title: "Contract Frontend Engineer",
+      company: "ProjectBoost",
+      location: "Remote",
+      salary: "$90/hr",
+      matchScore: 77,
+      postedTime: "3 days ago",
+      description: "6-month contract opportunity for a frontend engineer to help build a new customer-facing portal.",
+      skills: ["TypeScript", "React", "Material UI", "GraphQL"],
+      applyUrl: "https://example.com/jobs/contract-frontend",
+      jobType: ["contract", "remote"],
+      experienceLevel: "senior"
     }
   ]);
   
+  const [jobsData, setJobsData] = useState<Job[]>(allJobs);
   const [displayedJobs, setDisplayedJobs] = useState(3);
+
+  // Apply filters whenever they change
+  useEffect(() => {
+    let filteredJobs = [...allJobs];
+    
+    // Apply job type filters
+    const activeJobTypeFilters = Object.entries(jobTypeFilters)
+      .filter(([_, isActive]) => isActive)
+      .map(([type]) => type);
+      
+    if (activeJobTypeFilters.length > 0) {
+      filteredJobs = filteredJobs.filter(job => 
+        job.jobType.some(type => activeJobTypeFilters.includes(type))
+      );
+    }
+    
+    // Apply experience level filters
+    const activeExpLevelFilters = Object.entries(experienceLevelFilters)
+      .filter(([_, isActive]) => isActive)
+      .map(([level]) => level);
+      
+    if (activeExpLevelFilters.length > 0) {
+      filteredJobs = filteredJobs.filter(job => 
+        activeExpLevelFilters.includes(job.experienceLevel)
+      );
+    }
+    
+    // Apply search term filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filteredJobs = filteredJobs.filter(job => 
+        job.title.toLowerCase().includes(searchLower) || 
+        job.company.toLowerCase().includes(searchLower) ||
+        job.skills.some(skill => skill.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    // Apply location filter
+    if (location) {
+      const locationLower = location.toLowerCase();
+      filteredJobs = filteredJobs.filter(job => 
+        job.location.toLowerCase().includes(locationLower)
+      );
+    }
+    
+    // Apply match score filter
+    filteredJobs = filteredJobs.filter(job => job.matchScore >= minMatchScore);
+    
+    // Apply sorting
+    if (sortBy === 'matchScore') {
+      filteredJobs.sort((a, b) => b.matchScore - a.matchScore);
+    } else if (sortBy === 'datePosted') {
+      filteredJobs.sort((a, b) => {
+        // Simple string comparison for this demo
+        // In a real app, parse actual dates
+        return a.postedTime.localeCompare(b.postedTime);
+      });
+    } else if (sortBy === 'company') {
+      filteredJobs.sort((a, b) => a.company.localeCompare(b.company));
+    } else if (sortBy === 'location') {
+      filteredJobs.sort((a, b) => a.location.localeCompare(b.location));
+    }
+    
+    setJobsData(filteredJobs);
+    setDisplayedJobs(Math.min(3, filteredJobs.length)); // Reset pagination when filters change
+  }, [jobTypeFilters, experienceLevelFilters, searchTerm, location, minMatchScore, sortBy, allJobs]);
 
   // Handle job type filter change
   const handleJobTypeChange = (id: keyof typeof jobTypeFilters) => {
@@ -150,6 +276,9 @@ const Jobs = () => {
       senior: false,
       executive: false,
     });
+    setSearchTerm('');
+    setLocation('');
+    setMinMatchScore(70);
     toast({
       title: "Filters Reset",
       description: "All job filters have been reset.",
@@ -158,26 +287,7 @@ const Jobs = () => {
   
   // Handle sort by change
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const sortValue = e.target.value;
-    setSortBy(sortValue);
-    
-    let sortedJobs = [...jobsData];
-    
-    if (sortValue === 'matchScore') {
-      sortedJobs.sort((a, b) => b.matchScore - a.matchScore);
-    } else if (sortValue === 'datePosted') {
-      sortedJobs.sort((a, b) => {
-        // Simple sort by string comparison for this demo
-        // In a real app, you'd parse the dates properly
-        return a.postedTime.localeCompare(b.postedTime);
-      });
-    } else if (sortValue === 'company') {
-      sortedJobs.sort((a, b) => a.company.localeCompare(b.company));
-    } else if (sortValue === 'location') {
-      sortedJobs.sort((a, b) => a.location.localeCompare(b.location));
-    }
-    
-    setJobsData(sortedJobs);
+    setSortBy(e.target.value);
   };
   
   const handleLoadMore = () => {
@@ -193,6 +303,21 @@ const Jobs = () => {
         description: "All available job listings are displayed.",
       });
     }
+  };
+
+  // Handle search input change
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+  
+  // Handle location input change
+  const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocation(e.target.value);
+  };
+  
+  // Handle match score slider change
+  const handleMatchScoreChange = (value: number[]) => {
+    setMinMatchScore(value[0]);
   };
 
   // Displayed jobs
@@ -222,23 +347,38 @@ const Jobs = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Job Title
                   </label>
-                  <Input placeholder="Search job titles" />
+                  <Input 
+                    placeholder="Search job titles" 
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Location
                   </label>
-                  <Input placeholder="City, State, or Remote" />
+                  <Input 
+                    placeholder="City, State, or Remote" 
+                    value={location}
+                    onChange={handleLocationChange}
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Match Score
                   </label>
-                  <Slider defaultValue={[70]} max={100} step={1} className="my-5" />
+                  <Slider 
+                    defaultValue={[minMatchScore]} 
+                    value={[minMatchScore]}
+                    max={100} 
+                    step={5} 
+                    className="my-5"
+                    onValueChange={handleMatchScoreChange}
+                  />
                   <div className="flex justify-between text-xs text-gray-600">
-                    <span>70%</span>
+                    <span>{minMatchScore}%</span>
                     <span>100%</span>
                   </div>
                 </div>
@@ -294,7 +434,12 @@ const Jobs = () => {
             <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 flex flex-col sm:flex-row justify-between items-center">
               <div className="flex items-center mb-4 sm:mb-0">
                 <Search className="text-gray-400 mr-2" />
-                <Input placeholder="Search job listings" className="w-full sm:w-80" />
+                <Input 
+                  placeholder="Search job listings" 
+                  className="w-full sm:w-80"
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                />
               </div>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-600">Sort by:</span>
@@ -311,31 +456,40 @@ const Jobs = () => {
               </div>
             </div>
 
-            <div className="space-y-6">
-              {visibleJobs.map(job => (
-                <JobListingCard
-                  key={job.id}
-                  title={job.title}
-                  company={job.company}
-                  location={job.location}
-                  salary={job.salary}
-                  matchScore={job.matchScore}
-                  postedTime={job.postedTime}
-                  description={job.description}
-                  skills={job.skills}
-                  onApply={() => handleApplyNow(job.title, job.applyUrl)}
-                  onSave={() => handleSaveJob(job.title)}
-                />
-              ))}
-              
-              {displayedJobs < jobsData.length && (
-                <div className="flex justify-center mt-8">
-                  <Button className="bg-careerGpt-indigo hover:bg-careerGpt-indigo/90" onClick={handleLoadMore}>
-                    Load More Jobs
-                  </Button>
-                </div>
-              )}
-            </div>
+            {jobsData.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-lg text-gray-600">No jobs match your current filters.</p>
+                <Button className="mt-4" variant="outline" onClick={handleResetFilters}>
+                  Reset Filters
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {visibleJobs.map(job => (
+                  <JobListingCard
+                    key={job.id}
+                    title={job.title}
+                    company={job.company}
+                    location={job.location}
+                    salary={job.salary}
+                    matchScore={job.matchScore}
+                    postedTime={job.postedTime}
+                    description={job.description}
+                    skills={job.skills}
+                    onApply={() => handleApplyNow(job.title, job.applyUrl)}
+                    onSave={() => handleSaveJob(job.title)}
+                  />
+                ))}
+                
+                {displayedJobs < jobsData.length && (
+                  <div className="flex justify-center mt-8">
+                    <Button className="bg-careerGpt-indigo hover:bg-careerGpt-indigo/90" onClick={handleLoadMore}>
+                      Load More Jobs
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

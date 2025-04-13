@@ -1,16 +1,36 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { BriefcaseBusiness, MessagesSquare, FileStack, Menu, X, FileText } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { toast } from '@/hooks/use-toast';
 
 const Navbar = () => {
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const [isSignedIn, setIsSignedIn] = React.useState(false);
+  const navigate = useNavigate();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const handleSignIn = () => {
+    // In a real app, this would redirect to an authentication page
+    setIsSignedIn(true);
+    toast({
+      title: "Signed In Successfully",
+      description: "Welcome to CareerGPT! You now have access to all features.",
+    });
+  };
+
+  const handleSignOut = () => {
+    setIsSignedIn(false);
+    toast({
+      title: "Signed Out",
+      description: "You have been signed out successfully.",
+    });
   };
 
   return (
@@ -40,7 +60,11 @@ const Navbar = () => {
                   <NavLink to="/interviews" icon={<MessagesSquare size={18} />} onClick={() => setIsMenuOpen(false)}>Interviews</NavLink>
                   <NavLink to="/resumes" icon={<FileText size={18} />} onClick={() => setIsMenuOpen(false)}>Resumes</NavLink>
                   <div className="pt-2 border-t border-gray-100">
-                    <Button variant="default" className="w-full">Sign In</Button>
+                    {isSignedIn ? (
+                      <Button variant="default" className="w-full" onClick={handleSignOut}>Sign Out</Button>
+                    ) : (
+                      <Button variant="default" className="w-full" onClick={handleSignIn}>Sign In</Button>
+                    )}
                   </div>
                 </nav>
               </div>
@@ -54,7 +78,11 @@ const Navbar = () => {
               <NavLink to="/interviews" icon={<MessagesSquare size={18} />}>Interviews</NavLink>
               <NavLink to="/resumes" icon={<FileText size={18} />}>Resumes</NavLink>
             </nav>
-            <Button variant="default">Sign In</Button>
+            {isSignedIn ? (
+              <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
+            ) : (
+              <Button variant="default" onClick={handleSignIn}>Sign In</Button>
+            )}
           </div>
         )}
       </div>

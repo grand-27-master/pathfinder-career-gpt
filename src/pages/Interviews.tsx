@@ -9,43 +9,101 @@ import { toast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+const sampleQuestions = {
+  frontend: [
+    "Can you explain your experience with React and how you've used it in your projects?",
+    "How do you approach responsive design? What CSS frameworks do you prefer?",
+    "Explain the concept of state management in frontend applications.",
+    "How do you debug JavaScript issues in the browser?",
+    "What's your experience with TypeScript and how has it benefited your development process?",
+    "Can you explain the difference between client-side and server-side rendering?"
+  ],
+  backend: [
+    "Tell me about your experience with server-side technologies.",
+    "How do you design and implement APIs?",
+    "Explain database normalization and when you might choose to denormalize data.",
+    "How do you handle authentication and authorization in your backend applications?",
+    "Describe your approach to error handling in a backend service.",
+    "How do you ensure the scalability of your backend systems?"
+  ],
+  fullstack: [
+    "How do you coordinate development between frontend and backend components?",
+    "Explain your experience with full-stack frameworks.",
+    "How do you approach database design in a full-stack application?",
+    "What strategies do you use for state management across the entire application?",
+    "How do you handle deployment of full-stack applications?",
+    "Describe a challenging full-stack project you worked on."
+  ],
+  design: [
+    "How do you approach the UX research process?",
+    "Can you explain your design workflow from concept to implementation?",
+    "How do you ensure your designs are accessible?",
+    "What tools do you use in your design process?",
+    "How do you collaborate with developers to implement your designs?",
+    "Describe how you've used user feedback to iterate on a design."
+  ]
+};
+
 const Interviews = () => {
   const [message, setMessage] = useState('');
   const [selectedTab, setSelectedTab] = useState('simulator');
   const [isInterviewActive, setIsInterviewActive] = useState(true);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [interviewType, setInterviewType] = useState('frontend');
+  const [questionIndex, setQuestionIndex] = useState(0);
   
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string; timestamp: string }[]>([
     {
       role: 'assistant',
       content: "Hello! I'm your interview coach for today. We'll be conducting a mock interview for a Frontend Developer position. Are you ready to begin?",
-      timestamp: '2:30 PM'
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
 
   const handleSendMessage = () => {
     if (message.trim()) {
       // Add user message
+      const userTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       setChatMessages([
         ...chatMessages,
         {
           role: 'user',
           content: message,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          timestamp: userTimestamp
         }
       ]);
       
       // Clear input
       setMessage('');
       
-      // Simulate AI response
+      // Generate AI response based on user's message
       setTimeout(() => {
+        let aiResponse = "";
+        const questions = sampleQuestions[interviewType as keyof typeof sampleQuestions] || sampleQuestions.frontend;
+        
+        // If this is the beginning of the interview
+        if (chatMessages.length <= 1) {
+          aiResponse = "Great! Let's start with the first question:\n\n" + questions[0];
+          setQuestionIndex(1);
+        } 
+        // If we still have questions left
+        else if (questionIndex < questions.length) {
+          // Provide feedback on previous answer, then ask next question
+          aiResponse = `That's a thoughtful response! Here's my feedback: your answer was ${message.length > 100 ? 'detailed and thorough' : 'concise but could use more examples'}.\n\nNext question:\n${questions[questionIndex]}`;
+          setQuestionIndex(questionIndex + 1);
+        } 
+        // If we've gone through all questions
+        else {
+          aiResponse = "Thank you for completing this mock interview! Overall, your responses were insightful. To improve, consider providing more specific examples from your experience and structuring your answers using the STAR method (Situation, Task, Action, Result). Would you like to try another interview type?";
+        }
+        
+        const aiTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         setChatMessages(prev => [
           ...prev,
           {
             role: 'assistant',
-            content: "That's a great response! Could you elaborate more on your experience with React hooks and how you've used them in your projects?",
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            content: aiResponse,
+            timestamp: aiTimestamp
           }
         ]);
       }, 1000);
@@ -59,7 +117,8 @@ const Interviews = () => {
     }
   };
 
-  const handleScheduleInterview = (dialogData: any) => {
+  const handleScheduleInterview = (e: React.MouseEvent) => {
+    e.preventDefault();
     setShowScheduleDialog(false);
     
     // In a real app, this would save the interview details to a database
@@ -89,10 +148,16 @@ const Interviews = () => {
       }
     ]);
     setIsInterviewActive(true);
+    setQuestionIndex(0);
     toast({
       title: "Interview Reset",
       description: "The interview has been reset. You can start fresh now.",
     });
+  };
+
+  const handleInterviewTypeChange = (value: string) => {
+    setInterviewType(value);
+    // In a real implementation, you would reset the interview or adapt questions
   };
 
   return (
