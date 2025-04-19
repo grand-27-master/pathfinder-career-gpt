@@ -9,10 +9,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { LogIn, UserPlus } from 'lucide-react';
 import { useUser } from '@/context/UserContext';
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuthDialogProps {
   mode: 'signin' | 'signup';
@@ -21,24 +20,36 @@ interface AuthDialogProps {
 
 const AuthDialog = ({ mode, onSuccess }: AuthDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const { signIn, signUp } = useUser();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (email && password) {
-      if (mode === 'signin') {
-        signIn(email, password);
-      } else {
-        signUp(email, password, name);
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
       }
-      
-      setIsOpen(false);
-      if (onSuccess) onSuccess();
+    });
+    
+    if (error) {
+      console.error('Error logging in with Google:', error.message);
     }
+    setIsLoading(false);
+  };
+
+  const handleLinkedInLogin = async () => {
+    setIsLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'linkedin_oidc',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    });
+    
+    if (error) {
+      console.error('Error logging in with LinkedIn:', error.message);
+    }
+    setIsLoading(false);
   };
 
   return (
@@ -65,50 +76,37 @@ const AuthDialog = ({ mode, onSuccess }: AuthDialogProps) => {
           </DialogTitle>
           <DialogDescription>
             {mode === 'signin' 
-              ? 'Enter your credentials to access your account'
-              : 'Sign up for a new account to get started'
+              ? 'Sign in to your account using your preferred method'
+              : 'Create a new account using your preferred method'
             }
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === 'signup' && (
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="Enter your name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+        <div className="flex flex-col space-y-4 pt-4">
+          <Button 
+            onClick={handleGoogleLogin} 
+            disabled={isLoading}
+            className="w-full bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+          >
+            <img 
+              src="https://authjs.dev/img/providers/google.svg" 
+              alt="Google" 
+              className="w-5 h-5 mr-2"
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <Button type="submit" className="w-full">
-            {mode === 'signin' ? 'Sign In' : 'Create Account'}
+            Continue with Google
           </Button>
-        </form>
+          <Button 
+            onClick={handleLinkedInLogin} 
+            disabled={isLoading}
+            className="w-full bg-[#0077B5] hover:bg-[#006399] text-white"
+          >
+            <img 
+              src="https://authjs.dev/img/providers/linkedin.svg" 
+              alt="LinkedIn" 
+              className="w-5 h-5 mr-2"
+            />
+            Continue with LinkedIn
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
