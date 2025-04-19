@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -11,29 +11,33 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { LogIn } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { LogIn, UserPlus } from 'lucide-react';
+import { useUser } from '@/context/UserContext';
 
 interface AuthDialogProps {
   mode: 'signin' | 'signup';
-  onSuccess: () => void;
+  onSuccess?: () => void;
 }
 
 const AuthDialog = ({ mode, onSuccess }: AuthDialogProps) => {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const { signIn, signUp } = useUser();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would call an authentication service
+    
     if (email && password) {
-      onSuccess();
+      if (mode === 'signin') {
+        signIn(email, password);
+      } else {
+        signUp(email, password, name);
+      }
+      
       setIsOpen(false);
-      toast({
-        title: mode === 'signin' ? 'Signed In Successfully' : 'Account Created Successfully',
-        description: mode === 'signin' ? 'Welcome back!' : 'Welcome to CareerGPT!',
-      });
+      if (onSuccess) onSuccess();
     }
   };
 
@@ -41,8 +45,17 @@ const AuthDialog = ({ mode, onSuccess }: AuthDialogProps) => {
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant={mode === 'signin' ? 'default' : 'outline'}>
-          <LogIn className="mr-2 h-4 w-4" />
-          {mode === 'signin' ? 'Sign In' : 'Sign Up'}
+          {mode === 'signin' ? (
+            <>
+              <LogIn className="mr-2 h-4 w-4" />
+              Sign In
+            </>
+          ) : (
+            <>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Sign Up
+            </>
+          )}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
@@ -58,6 +71,18 @@ const AuthDialog = ({ mode, onSuccess }: AuthDialogProps) => {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === 'signup' && (
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Enter your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input

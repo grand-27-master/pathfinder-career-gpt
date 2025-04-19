@@ -2,8 +2,10 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { FileUp, X, FileText, Check } from 'lucide-react';
+import { useUser } from '@/context/UserContext';
+import { Resume } from '@/context/UserContext';
 
 const ResumeUploader = () => {
   const [dragActive, setDragActive] = useState<boolean>(false);
@@ -12,6 +14,7 @@ const ResumeUploader = () => {
   const [progress, setProgress] = useState<number>(0);
   const [uploadComplete, setUploadComplete] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { addResume, isAuthenticated } = useUser();
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -58,6 +61,15 @@ const ResumeUploader = () => {
   const handleUpload = () => {
     if (!file) return;
     
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to upload your resume.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setUploading(true);
     setProgress(0);
     
@@ -68,6 +80,23 @@ const ResumeUploader = () => {
           clearInterval(interval);
           setUploading(false);
           setUploadComplete(true);
+          
+          // Create a resume object and add to user context
+          const newResume: Resume = {
+            id: `resume-${Date.now()}`,
+            name: file.name,
+            uploadDate: new Date().toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+            }),
+            fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+            atsScore: Math.floor(Math.random() * 30) + 70, // Random score between 70-100 for demo
+            status: 'processed'
+          };
+          
+          addResume(newResume);
+          
           toast({
             title: "Resume uploaded",
             description: "Your resume has been uploaded and is being processed.",

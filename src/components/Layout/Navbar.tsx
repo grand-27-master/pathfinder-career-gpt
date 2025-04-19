@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,12 +9,12 @@ import {
   Menu, 
   X, 
   FileText,
-  LogIn,
-  LogOut,
-  User
+  User,
+  UserPlus
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { toast } from '@/hooks/use-toast';
+import AuthDialog from '@/components/Auth/AuthDialog';
+import { useUser } from '@/context/UserContext';
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -22,31 +23,23 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Navbar = () => {
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const [isSignedIn, setIsSignedIn] = React.useState(false);
   const navigate = useNavigate();
+  const { user, isAuthenticated, signOut } = useUser();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
-  };
-
-  const handleSignIn = () => {
-    setIsSignedIn(true);
-    toast({
-      title: "Signed In Successfully",
-      description: "Welcome to CareerGPT! You now have access to all features.",
-    });
-  };
-
-  const handleSignOut = () => {
-    setIsSignedIn(false);
-    toast({
-      title: "Signed Out",
-      description: "You have been signed out successfully.",
-    });
   };
 
   return (
@@ -75,17 +68,23 @@ const Navbar = () => {
                   <NavLink to="/jobs" icon={<BriefcaseBusiness size={18} />} onClick={() => setIsMenuOpen(false)}>Jobs</NavLink>
                   <NavLink to="/interviews" icon={<MessagesSquare size={18} />} onClick={() => setIsMenuOpen(false)}>Interviews</NavLink>
                   <NavLink to="/resumes" icon={<FileText size={18} />} onClick={() => setIsMenuOpen(false)}>Resumes</NavLink>
+                  <NavLink to="/pricing" icon={<FileText size={18} />} onClick={() => setIsMenuOpen(false)}>Pricing</NavLink>
                   <div className="pt-2 border-t border-gray-100">
-                    {isSignedIn ? (
-                      <Button variant="default" className="w-full" onClick={handleSignOut}>
-                        <LogOut className="mr-2" size={18} />
-                        Sign Out
-                      </Button>
+                    {isAuthenticated ? (
+                      <>
+                        <NavLink to="/profile" icon={<User size={18} />} onClick={() => setIsMenuOpen(false)}>My Profile</NavLink>
+                        <Button variant="default" className="w-full mt-2" onClick={() => {
+                          signOut();
+                          setIsMenuOpen(false);
+                        }}>
+                          Sign Out
+                        </Button>
+                      </>
                     ) : (
-                      <Button variant="default" className="w-full" onClick={handleSignIn}>
-                        <LogIn className="mr-2" size={18} />
-                        Sign In
-                      </Button>
+                      <div className="flex flex-col space-y-2">
+                        <AuthDialog mode="signin" />
+                        <AuthDialog mode="signup" />
+                      </div>
                     )}
                   </div>
                 </nav>
@@ -160,21 +159,37 @@ const Navbar = () => {
                 </NavigationMenuItem>
               </NavigationMenuList>
             </NavigationMenu>
-            {isSignedIn ? (
+            {isAuthenticated ? (
               <div className="flex items-center space-x-4">
-                <Button variant="ghost" size="icon">
-                  <User className="h-5 w-5" />
-                </Button>
-                <Button variant="outline" onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign Out
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <User className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => navigate('/profile')}>
+                      Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/resumes')}>
+                      My Resumes
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/interviews')}>
+                      My Interviews
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={signOut}>
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ) : (
-              <Button variant="default" onClick={handleSignIn}>
-                <LogIn className="mr-2 h-4 w-4" />
-                Sign In
-              </Button>
+              <div className="flex items-center space-x-2">
+                <AuthDialog mode="signin" />
+                <AuthDialog mode="signup" />
+              </div>
             )}
           </div>
         )}
