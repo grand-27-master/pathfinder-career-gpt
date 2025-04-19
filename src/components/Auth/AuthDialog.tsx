@@ -10,44 +10,73 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 import { LogIn, UserPlus } from 'lucide-react';
-import { useUser } from '@/context/UserContext';
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface AuthDialogProps {
   mode: 'signin' | 'signup';
   onSuccess?: () => void;
 }
 
+const formSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters long"),
+});
+
 const AuthDialog = ({ mode, onSuccess }: AuthDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
-      }
-    });
-    
-    if (error) {
-      console.error('Error logging in with Google:', error.message);
-    }
-    setIsLoading(false);
-  };
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
-  const handleLinkedInLogin = async () => {
+  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'linkedin_oidc',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
+    try {
+      const { error } = mode === 'signin' 
+        ? await supabase.auth.signInWithPassword({
+            email: values.email,
+            password: values.password,
+          })
+        : await supabase.auth.signUp({
+            email: values.email,
+            password: values.password,
+          });
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message,
+        });
+      } else {
+        setIsOpen(false);
+        if (onSuccess) onSuccess();
+        toast({
+          title: mode === 'signin' ? "Signed in successfully" : "Account created successfully",
+          description: mode === 'signin' 
+            ? "Welcome back!" 
+            : "Please check your email to verify your account.",
+        });
       }
-    });
-    
-    if (error) {
-      console.error('Error logging in with LinkedIn:', error.message);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+      });
     }
     setIsLoading(false);
   };
@@ -76,37 +105,62 @@ const AuthDialog = ({ mode, onSuccess }: AuthDialogProps) => {
           </DialogTitle>
           <DialogDescription>
             {mode === 'signin' 
-              ? 'Sign in to your account using your preferred method'
-              : 'Create a new account using your preferred method'
+              ? 'Sign in to your account using your email and password'
+              : 'Create a new account using your email and password'
             }
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col space-y-4 pt-4">
-          <Button 
-            onClick={handleGoogleLogin} 
-            disabled={isLoading}
-            className="w-full bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-          >
-            <img 
-              src="https://authjs.dev/img/providers/google.svg" 
-              alt="Google" 
-              className="w-5 h-5 mr-2"
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 pt-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="email" 
+                      placeholder="Enter your email" 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-            Continue with Google
-          </Button>
-          <Button 
-            onClick={handleLinkedInLogin} 
-            disabled={isLoading}
-            className="w-full bg-[#0077B5] hover:bg-[#006399] text-white"
-          >
-            <img 
-              src="https://authjs.dev/img/providers/linkedin.svg" 
-              alt="LinkedIn" 
-              className="w-5 h-5 mr-2"
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="password" 
+                      placeholder="Enter your password" 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-            Continue with LinkedIn
-          </Button>
-        </div>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                "Loading..."
+              ) : mode === 'signin' ? (
+                "Sign In"
+              ) : (
+                "Create Account"
+              )}
+            </Button>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
