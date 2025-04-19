@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -142,6 +141,17 @@ const Navbar = () => {
                           </div>
                           <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
                             Manage and optimize your resumes
+                          </p>
+                        </Link>
+                      </NavigationMenuLink>
+                      <NavigationMenuLink asChild>
+                        <Link to="/pricing" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
+                          <div className="flex items-center gap-2">
+                            <FileText size={18} />
+                            <span className="text-sm font-medium leading-none">Pricing</span>
+                          </div>
+                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                            View our pricing plans and features
                           </p>
                         </Link>
                       </NavigationMenuLink>
