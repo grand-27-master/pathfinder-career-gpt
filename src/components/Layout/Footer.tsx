@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { BriefcaseBusiness } from 'lucide-react';
@@ -18,40 +17,6 @@ const Footer = () => {
             </p>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-8">
-            <div>
-              <h3 className="font-medium text-gray-900 mb-3">Product</h3>
-              <ul className="space-y-2">
-                <FooterLink to="/dashboard">Features</FooterLink>
-                <FooterLink to="/dashboard">Pricing</FooterLink>
-                <FooterLink to="/dashboard">About Us</FooterLink>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="font-medium text-gray-900 mb-3">Resources</h3>
-              <ul className="space-y-2">
-                <FooterLink to="/dashboard">Blog</FooterLink>
-                <FooterLink to="/dashboard">Help Center</FooterLink>
-                <FooterLink to="/dashboard">Contact</FooterLink>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="font-medium text-gray-900 mb-3">Legal</h3>
-              <ul className="space-y-2">
-                <FooterLink to="/dashboard">Privacy</FooterLink>
-                <FooterLink to="/dashboard">Terms</FooterLink>
-                <FooterLink to="/dashboard">Cookies</FooterLink>
-              </ul>
-            </div>
-          </div>
-        </div>
-        
-        <div className="border-t border-gray-200 mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center">
-          <p className="text-gray-600 text-sm">
-            &copy; {new Date().getFullYear()} CareerGPT. All rights reserved.
-          </p>
           <div className="flex space-x-6 mt-4 sm:mt-0">
             <SocialLink href="https://twitter.com" label="Twitter">
               <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -69,6 +34,12 @@ const Footer = () => {
               </svg>
             </SocialLink>
           </div>
+        </div>
+        
+        <div className="border-t border-gray-200 mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center">
+          <p className="text-gray-600 text-sm">
+            &copy; {new Date().getFullYear()} CareerGPT. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>
