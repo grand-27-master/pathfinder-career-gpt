@@ -1,15 +1,58 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Eye, Trash2, Upload, FileText } from 'lucide-react';
 import MainLayout from '@/components/Layout/MainLayout';
 import ResumeUploader from '@/components/Resume/ResumeUploader';
 import { useUser } from '@/context/UserContext';
 import AuthDialog from '@/components/Auth/AuthDialog';
+import { useSearchParams } from 'react-router-dom';
+import { toast } from '@/hooks/use-toast';
 
 const Resumes = () => {
   const { user, isAuthenticated, deleteResume } = useUser();
+  const [searchParams] = useSearchParams();
+  const viewResumeId = searchParams.get('view');
+  const [viewedResume, setViewedResume] = useState<{ id: string; content?: string } | null>(null);
+
+  // Find the resume to view based on URL parameter
+  React.useEffect(() => {
+    if (viewResumeId && user?.resumes) {
+      const resume = user.resumes.find(r => r.id === viewResumeId);
+      if (resume) {
+        setViewedResume({
+          id: resume.id,
+          content: `This is a placeholder for the actual resume content of ${resume.name}.
+          
+In a real implementation, this would display the actual resume content or a PDF viewer component.`
+        });
+      }
+    }
+  }, [viewResumeId, user?.resumes]);
+
+  const handleDeleteResume = (resumeId: string) => {
+    deleteResume(resumeId);
+    toast({
+      title: "Resume deleted",
+      description: "Your resume has been successfully deleted.",
+    });
+  };
+
+  const handleViewResume = (resumeId: string) => {
+    if (user?.resumes) {
+      const resume = user.resumes.find(r => r.id === resumeId);
+      if (resume) {
+        setViewedResume({
+          id: resume.id,
+          content: `This is a placeholder for the actual resume content of ${resume.name}.
+          
+In a real implementation, this would display the actual resume content or a PDF viewer component.`
+        });
+      }
+    }
+  };
 
   const getScoreColor = (score: number) => {
     if (score >= 90) return 'text-green-600 bg-green-50';
@@ -96,13 +139,14 @@ const Resumes = () => {
                                 variant="ghost" 
                                 size="icon" 
                                 title="View Resume"
+                                onClick={() => handleViewResume(resume.id)}
                               >
                                 <Eye className="h-5 w-5" />
                               </Button>
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                onClick={() => deleteResume(resume.id)}
+                                onClick={() => handleDeleteResume(resume.id)}
                                 title="Delete Resume"
                               >
                                 <Trash2 className="h-5 w-5 text-red-500" />
@@ -138,6 +182,26 @@ const Resumes = () => {
             </Card>
           </div>
         </div>
+
+        {/* Resume Viewer Dialog */}
+        <Dialog open={viewedResume !== null} onOpenChange={(open) => !open && setViewedResume(null)}>
+          <DialogContent className="sm:max-w-[700px]">
+            <DialogHeader>
+              <DialogTitle>Resume Preview</DialogTitle>
+            </DialogHeader>
+            <div className="p-4 border rounded-md bg-gray-50 whitespace-pre-line">
+              {viewedResume?.content}
+            </div>
+            <div className="flex justify-end mt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setViewedResume(null)}
+              >
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );
