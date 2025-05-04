@@ -23,6 +23,10 @@ export type User = {
   id: string;
   name: string;
   email: string;
+  location?: string;
+  linkedinUrl?: string;
+  githubUrl?: string;
+  roles?: string[];
   resumes: Resume[];
   interviews: InterviewRecord[];
 };
@@ -38,6 +42,7 @@ interface UserContextType {
   deleteResume: (resumeId: string) => void;
   addInterview: (interview: InterviewRecord) => void;
   deleteInterview: (interviewId: string) => void;
+  updateProfile: (profileData: Partial<User>) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -75,6 +80,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: `user-${Date.now()}`,
         name: email.split('@')[0],
         email,
+        location: '',
+        linkedinUrl: '',
+        githubUrl: '',
+        roles: ['Job Seeker'],
         resumes: [],
         interviews: []
       };
@@ -97,6 +106,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: `user-${Date.now()}`,
         name: name || email.split('@')[0], 
         email,
+        location: '',
+        linkedinUrl: '',
+        githubUrl: '',
+        roles: ['Job Seeker'],
         resumes: [],
         interviews: []
       };
@@ -115,6 +128,20 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toast({
       title: "Signed Out",
       description: "You have been signed out successfully.",
+    });
+  };
+
+  const updateProfile = (profileData: Partial<User>) => {
+    if (!user) return;
+    
+    setUser({
+      ...user,
+      ...profileData
+    });
+    
+    toast({
+      title: "Profile Updated",
+      description: "Your profile information has been updated successfully.",
     });
   };
 
@@ -178,7 +205,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addResume,
         deleteResume,
         addInterview,
-        deleteInterview
+        deleteInterview,
+        updateProfile
       }}
     >
       {children}

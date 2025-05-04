@@ -1,15 +1,25 @@
 
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, User, MessageSquare, Eye, Trash2 } from 'lucide-react';
+import { FileText, User, MessageSquare, Eye, Trash2, MapPin, Mail, Linkedin, Github } from 'lucide-react';
 import MainLayout from '@/components/Layout/MainLayout';
 import { useUser } from '@/context/UserContext';
 import { useNavigate } from 'react-router-dom';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const Profile = () => {
-  const { user, isAuthenticated, deleteResume, deleteInterview } = useUser();
+  const { user, isAuthenticated, deleteResume, deleteInterview, updateProfile } = useUser();
   const navigate = useNavigate();
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: user?.name || '',
+    location: user?.location || '',
+    linkedinUrl: user?.linkedinUrl || '',
+    githubUrl: user?.githubUrl || ''
+  });
 
   // Redirect to home if not authenticated
   React.useEffect(() => {
@@ -17,6 +27,17 @@ const Profile = () => {
       navigate('/');
     }
   }, [isAuthenticated, navigate]);
+
+  React.useEffect(() => {
+    if (user) {
+      setProfileForm({
+        name: user.name || '',
+        location: user.location || '',
+        linkedinUrl: user.linkedinUrl || '',
+        githubUrl: user.githubUrl || ''
+      });
+    }
+  }, [user]);
 
   if (!user) return null;
 
@@ -27,6 +48,17 @@ const Profile = () => {
     return 'text-red-600 bg-red-50';
   };
 
+  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setProfileForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleProfileSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfile(profileForm);
+    setIsEditProfileOpen(false);
+  };
+
   return (
     <MainLayout>
       <div className="container mx-auto px-4 py-8">
@@ -35,6 +67,13 @@ const Profile = () => {
             <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
             <p className="text-gray-600 mt-1">Manage your career progress and data</p>
           </div>
+          <Button 
+            variant="outline"
+            className="mt-4 md:mt-0"
+            onClick={() => setIsEditProfileOpen(true)}
+          >
+            Edit Profile
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -55,6 +94,64 @@ const Profile = () => {
                     <h3 className="font-medium text-lg">{user.name}</h3>
                     <p className="text-gray-500">{user.email}</p>
                   </div>
+                </div>
+                
+                {user.roles && user.roles.length > 0 && (
+                  <div className="pt-4">
+                    <h4 className="text-sm font-medium text-gray-500 mb-2">Roles</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {user.roles.map((role, index) => (
+                        <span 
+                          key={index} 
+                          className="px-2 py-1 bg-careerGpt-indigo/10 text-careerGpt-indigo text-xs font-medium rounded-full"
+                        >
+                          {role}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-4 space-y-3">
+                  {user.location && (
+                    <div className="flex items-center text-gray-700">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      <span>{user.location}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center text-gray-700">
+                    <Mail className="h-4 w-4 mr-2" />
+                    <span>{user.email}</span>
+                  </div>
+                  
+                  {user.linkedinUrl && (
+                    <div className="flex items-center text-gray-700">
+                      <Linkedin className="h-4 w-4 mr-2" />
+                      <a 
+                        href={user.linkedinUrl.startsWith('http') ? user.linkedinUrl : `https://${user.linkedinUrl}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-careerGpt-indigo hover:underline"
+                      >
+                        LinkedIn Profile
+                      </a>
+                    </div>
+                  )}
+                  
+                  {user.githubUrl && (
+                    <div className="flex items-center text-gray-700">
+                      <Github className="h-4 w-4 mr-2" />
+                      <a 
+                        href={user.githubUrl.startsWith('http') ? user.githubUrl : `https://${user.githubUrl}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-careerGpt-indigo hover:underline"
+                      >
+                        GitHub Profile
+                      </a>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="pt-4">
@@ -218,6 +315,71 @@ const Profile = () => {
             </div>
           </div>
         </div>
+
+        {/* Edit Profile Dialog */}
+        <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Edit Profile</DialogTitle>
+              <DialogDescription>
+                Update your profile information
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleProfileSubmit} className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input 
+                  id="name" 
+                  name="name" 
+                  value={profileForm.name} 
+                  onChange={handleProfileChange} 
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
+                <Input 
+                  id="location" 
+                  name="location" 
+                  value={profileForm.location} 
+                  onChange={handleProfileChange} 
+                  placeholder="e.g. New York, NY" 
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="linkedinUrl">LinkedIn URL</Label>
+                <Input 
+                  id="linkedinUrl" 
+                  name="linkedinUrl" 
+                  value={profileForm.linkedinUrl} 
+                  onChange={handleProfileChange} 
+                  placeholder="e.g. linkedin.com/in/yourname" 
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="githubUrl">GitHub URL</Label>
+                <Input 
+                  id="githubUrl" 
+                  name="githubUrl" 
+                  value={profileForm.githubUrl} 
+                  onChange={handleProfileChange} 
+                  placeholder="e.g. github.com/yourusername" 
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button variant="outline" type="button" onClick={() => setIsEditProfileOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );
