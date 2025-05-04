@@ -9,8 +9,7 @@ import {
   Menu, 
   X, 
   FileText,
-  User,
-  UserPlus
+  User
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import AuthDialog from '@/components/Auth/AuthDialog';
@@ -21,7 +20,6 @@ import {
   NavigationMenuItem,
   NavigationMenuList,
   NavigationMenuTrigger,
-  NavigationMenuLink,
 } from "@/components/ui/navigation-menu";
 import {
   DropdownMenu,
@@ -66,7 +64,12 @@ const Navbar = () => {
                 <nav className="flex flex-col space-y-4">
                   <NavLink to="/dashboard" icon={<FileStack size={18} />} onClick={() => setIsMenuOpen(false)}>Dashboard</NavLink>
                   <NavLink to="/interviews" icon={<MessagesSquare size={18} />} onClick={() => setIsMenuOpen(false)}>Interviews</NavLink>
-                  <NavLink to="/resumes" icon={<FileText size={18} />} onClick={() => setIsMenuOpen(false)}>Resumes</NavLink>
+                  
+                  {/* Only show Resumes tab for non-authenticated users */}
+                  {!isAuthenticated && (
+                    <NavLink to="/resumes" icon={<FileText size={18} />} onClick={() => setIsMenuOpen(false)}>Resumes</NavLink>
+                  )}
+                  
                   <NavLink to="/pricing" icon={<FileText size={18} />} onClick={() => setIsMenuOpen(false)}>Pricing</NavLink>
                   <div className="pt-2 border-t border-gray-100">
                     {isAuthenticated ? (
@@ -116,15 +119,20 @@ const Navbar = () => {
                           Practice interviews with AI
                         </p>
                       </Link>
-                      <Link to="/resumes" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-sky-50 hover:text-sky-500 focus:bg-accent focus:text-accent-foreground">
-                        <div className="flex items-center gap-2">
-                          <FileText size={18} />
-                          <span className="text-sm font-medium leading-none">Resumes</span>
-                        </div>
-                        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                          Manage and optimize your resumes
-                        </p>
-                      </Link>
+                      
+                      {/* Only show Resumes tab for non-authenticated users */}
+                      {!isAuthenticated && (
+                        <Link to="/resumes" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-sky-50 hover:text-sky-500 focus:bg-accent focus:text-accent-foreground">
+                          <div className="flex items-center gap-2">
+                            <FileText size={18} />
+                            <span className="text-sm font-medium leading-none">Resumes</span>
+                          </div>
+                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                            Manage and optimize your resumes
+                          </p>
+                        </Link>
+                      )}
+                      
                       <Link to="/pricing" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-sky-50 hover:text-sky-500 focus:bg-accent focus:text-accent-foreground">
                         <div className="flex items-center gap-2">
                           <FileText size={18} />
