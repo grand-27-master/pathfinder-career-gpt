@@ -18,6 +18,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from '@/context/UserContext';
 
 interface AuthDialogProps {
   mode: 'signin' | 'signup';
@@ -33,6 +34,7 @@ const AuthDialog = ({ mode, onSuccess }: AuthDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { signIn, signUp } = useUser();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -45,32 +47,13 @@ const AuthDialog = ({ mode, onSuccess }: AuthDialogProps) => {
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     try {
-      const { error } = mode === 'signin' 
-        ? await supabase.auth.signInWithPassword({
-            email: values.email,
-            password: values.password,
-          })
-        : await supabase.auth.signUp({
-            email: values.email,
-            password: values.password,
-          });
-
-      if (error) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: error.message,
-        });
+      if (mode === 'signin') {
+        signIn(values.email, values.password);
       } else {
-        setIsOpen(false);
-        if (onSuccess) onSuccess();
-        toast({
-          title: mode === 'signin' ? "Signed in successfully" : "Account created successfully",
-          description: mode === 'signin' 
-            ? "Welcome back!" 
-            : "Please check your email to verify your account.",
-        });
+        signUp(values.email, values.password, values.email.split('@')[0]);
       }
+      setIsOpen(false);
+      if (onSuccess) onSuccess();
     } catch (error) {
       toast({
         variant: "destructive",

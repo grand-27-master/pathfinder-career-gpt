@@ -13,7 +13,7 @@ interface MobileNavbarProps {
 }
 
 const MobileNavbar: React.FC<MobileNavbarProps> = ({ isMenuOpen, toggleMenu }) => {
-  const { isAuthenticated, signOut } = useUser();
+  const { isAuthenticated, signOut, user } = useUser();
 
   return (
     <>

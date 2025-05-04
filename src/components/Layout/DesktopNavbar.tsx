@@ -23,7 +23,7 @@ import { useUser } from '@/context/UserContext';
 
 const DesktopNavbar: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, signOut } = useUser();
+  const { isAuthenticated, signOut, user } = useUser();
 
   return (
     <div className="flex items-center space-x-6">
