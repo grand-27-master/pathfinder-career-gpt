@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { User, FileStack, MessagesSquare, FileText } from 'lucide-react';
 import AuthDialog from '@/components/Auth/AuthDialog';
 import { useUser } from '@/context/UserContext';
+import ThemeToggle from './ThemeToggle';
 
 const DesktopNavbar: React.FC = () => {
   const navigate = useNavigate();
@@ -80,8 +81,10 @@ const DesktopNavbar: React.FC = () => {
         </NavigationMenuList>
       </NavigationMenu>
       
-      {isAuthenticated ? (
-        <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-4">
+        <ThemeToggle />
+        
+        {isAuthenticated ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -105,13 +108,13 @@ const DesktopNavbar: React.FC = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-      ) : (
-        <div className="flex items-center space-x-2">
-          <AuthDialog mode="signin" />
-          <AuthDialog mode="signup" />
-        </div>
-      )}
+        ) : (
+          <div className="flex items-center space-x-2">
+            <AuthDialog mode="signin" />
+            <AuthDialog mode="signup" />
+          </div>
+        )}
+      </div>
     </div>
   );
 };

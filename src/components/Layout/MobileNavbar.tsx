@@ -6,6 +6,7 @@ import { X, Menu, FileStack, MessagesSquare, FileText, User } from 'lucide-react
 import AuthDialog from '@/components/Auth/AuthDialog';
 import { useUser } from '@/context/UserContext';
 import { NavLink } from './NavLink';
+import ThemeToggle from './ThemeToggle';
 
 interface MobileNavbarProps {
   isMenuOpen: boolean;
@@ -17,17 +18,20 @@ const MobileNavbar: React.FC<MobileNavbarProps> = ({ isMenuOpen, toggleMenu }) =
 
   return (
     <>
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        onClick={toggleMenu}
-        aria-label="Toggle menu"
-      >
-        {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-      </Button>
+      <div className="flex items-center space-x-2">
+        <ThemeToggle />
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={toggleMenu}
+          aria-label="Toggle menu"
+        >
+          {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </Button>
+      </div>
       
       {isMenuOpen && (
-        <div className="absolute top-full left-0 right-0 bg-white border-b border-gray-200 py-4 px-6 shadow-md">
+        <div className="absolute top-full left-0 right-0 bg-background border-b border-border py-4 px-6 shadow-md">
           <nav className="flex flex-col space-y-4">
             <NavLink to="/dashboard" icon={<FileStack size={18} />} onClick={toggleMenu}>Dashboard</NavLink>
             <NavLink to="/interviews" icon={<MessagesSquare size={18} />} onClick={toggleMenu}>Interviews</NavLink>
