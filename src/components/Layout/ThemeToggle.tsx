@@ -1,27 +1,10 @@
 
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { useTheme } from "@/context/ThemeContext";
-import { Moon, Sun } from "lucide-react";
 
+// This component is no longer needed but kept as a placeholder
+// to avoid breaking imports in other files
 const ThemeToggle: React.FC = () => {
-  const { theme, toggleTheme } = useTheme();
-  
-  return (
-    <Button 
-      variant="ghost" 
-      size="icon" 
-      onClick={toggleTheme}
-      aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
-      className="focus:outline-none"
-    >
-      {theme === "light" ? (
-        <Moon className="h-5 w-5" />
-      ) : (
-        <Sun className="h-5 w-5" />
-      )}
-    </Button>
-  );
+  return null;
 };
 
 export default ThemeToggle;
