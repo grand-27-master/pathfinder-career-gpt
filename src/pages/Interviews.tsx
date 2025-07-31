@@ -1,566 +1,430 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessagesSquare, Send, User, Bot, Clock, Calendar, FileText, RefreshCw, StopCircle } from 'lucide-react';
-import MainLayout from '@/components/Layout/MainLayout';
-import { toast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Mic, MicOff, Volume2, ArrowLeft, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
+import RoleSelector from '@/components/Interview/RoleSelector';
+import { AudioRecorder, encodeAudioForAPI, AudioQueue } from '@/utils/audioUtils';
 
-const sampleQuestions = {
-  frontend: [
-    "Can you explain your experience with React and how you've used it in your projects?",
-    "How do you approach responsive design? What CSS frameworks do you prefer?",
-    "Explain the concept of state management in frontend applications.",
-    "How do you debug JavaScript issues in the browser?",
-    "What's your experience with TypeScript and how has it benefited your development process?",
-    "Can you explain the difference between client-side and server-side rendering?"
-  ],
-  backend: [
-    "Tell me about your experience with server-side technologies.",
-    "How do you design and implement APIs?",
-    "Explain database normalization and when you might choose to denormalize data.",
-    "How do you handle authentication and authorization in your backend applications?",
-    "Describe your approach to error handling in a backend service.",
-    "How do you ensure the scalability of your backend systems?"
-  ],
-  fullstack: [
-    "How do you coordinate development between frontend and backend components?",
-    "Explain your experience with full-stack frameworks.",
-    "How do you approach database design in a full-stack application?",
-    "What strategies do you use for state management across the entire application?",
-    "How do you handle deployment of full-stack applications?",
-    "Describe a challenging full-stack project you worked on."
-  ],
-  design: [
-    "How do you approach the UX research process?",
-    "Can you explain your design workflow from concept to implementation?",
-    "How do you ensure your designs are accessible?",
-    "What tools do you use in your design process?",
-    "How do you collaborate with developers to implement your designs?",
-    "Describe how you've used user feedback to iterate on a design."
-  ]
-};
+interface Message {
+  id: string;
+  type: 'user' | 'ai';
+  content: string;
+  timestamp: Date;
+}
 
 const Interviews = () => {
-  const [message, setMessage] = useState('');
-  const [selectedTab, setSelectedTab] = useState('simulator');
-  const [isInterviewActive, setIsInterviewActive] = useState(true);
-  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
-  const [interviewType, setInterviewType] = useState('frontend');
-  const [questionIndex, setQuestionIndex] = useState(0);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [selectedRole, setSelectedRole] = useState<string>('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isAIResponding, setIsAIResponding] = useState(false);
+  const [interviewStarted, setInterviewStarted] = useState(false);
   
-  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string; timestamp: string }[]>([
-    {
-      role: 'assistant',
-      content: "Hello! I'm your interview coach for today. We'll be conducting a mock interview for a Frontend Developer position. Are you ready to begin?",
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-  ]);
+  const audioRecorderRef = useRef<AudioRecorder | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioQueueRef = useRef<AudioQueue | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
-  const handleSendMessage = () => {
-    if (message.trim()) {
-      const userTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      setChatMessages([
-        ...chatMessages,
-        {
-          role: 'user',
-          content: message,
-          timestamp: userTimestamp
-        }
-      ]);
-      
-      setMessage('');
-      
-      if (!isInterviewActive) return;
-      
-      let aiResponse = "";
-      const questions = sampleQuestions[interviewType as keyof typeof sampleQuestions] || sampleQuestions.frontend;
-      
-      if (chatMessages.length <= 1) {
-        aiResponse = "Great! Let's start with the first question:\n\n" + questions[0];
-        setQuestionIndex(1);
-      } 
-      else if (questionIndex < questions.length) {
-        aiResponse = `That's a thoughtful response! Here's my feedback: your answer was ${message.length > 100 ? 'detailed and thorough' : 'concise but could use more examples'}.\n\nNext question:\n${questions[questionIndex]}`;
-        setQuestionIndex(questionIndex + 1);
-      } 
-      else {
-        aiResponse = "Thank you for completing this mock interview! Overall, your responses were insightful. To improve, consider providing more specific examples from your experience and structuring your answers using the STAR method (Situation, Task, Action, Result). Would you like to try another interview type?";
+  useEffect(() => {
+    // Initialize audio context
+    audioContextRef.current = new AudioContext();
+    audioQueueRef.current = new AudioQueue(audioContextRef.current);
+
+    return () => {
+      if (audioRecorderRef.current) {
+        audioRecorderRef.current.stop();
       }
-      
-      const aiTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      setChatMessages(prev => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: aiResponse,
-          timestamp: aiTimestamp
-        }
-      ]);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const handleScheduleInterview = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setShowScheduleDialog(false);
-    
-    toast({
-      title: "Interview Scheduled",
-      description: "Your mock interview has been scheduled. Check the 'Scheduled Interviews' tab for details.",
-    });
-    
-    setSelectedTab('scheduled');
-  };
-  
-  const handleEndInterview = () => {
-    setIsInterviewActive(false);
-    
-    const endTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    setChatMessages(prev => [
-      ...prev,
-      {
-        role: 'assistant',
-        content: "This interview has been ended. Thank you for participating. You can view the interview transcript and feedback in the History tab or reset the interview to start again.",
-        timestamp: endTimestamp
+      if (wsRef.current) {
+        wsRef.current.close();
       }
-    ]);
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, []);
+
+  const addMessage = (type: 'user' | 'ai', content: string) => {
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      type,
+      content,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, newMessage]);
+  };
+
+  const startInterview = async () => {
+    if (!selectedRole) {
+      toast({
+        title: "Please select a role",
+        description: "Choose the position you're interviewing for",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      
+      // Initialize WebSocket connection to your edge function
+      const wsUrl = `wss://${window.location.hostname.includes('localhost') 
+        ? 'localhost:54321' 
+        : window.location.hostname.replace('.lovableproject.com', '')}.functions.supabase.co/functions/v1/realtime-interview`;
+      
+      wsRef.current = new WebSocket(wsUrl);
+      
+      wsRef.current.onopen = () => {
+        console.log('WebSocket connected');
+        setIsProcessing(false);
+        setInterviewStarted(true);
+        
+        // Send initial session configuration after connection
+        setTimeout(() => {
+          const sessionConfig = {
+            type: 'session.update',
+            session: {
+              modalities: ['text', 'audio'],
+              instructions: `You are an AI interviewer conducting a mock interview for a ${selectedRole} position. Ask relevant questions for this role, provide helpful feedback, and maintain a professional yet friendly tone. Start with a greeting and your first question.`,
+              voice: 'alloy',
+              input_audio_format: 'pcm16',
+              output_audio_format: 'pcm16',
+              input_audio_transcription: {
+                model: 'whisper-1'
+              },
+              turn_detection: {
+                type: 'server_vad',
+                threshold: 0.5,
+                prefix_padding_ms: 300,
+                silence_duration_ms: 1000
+              },
+              temperature: 0.8,
+              max_response_output_tokens: 'inf'
+            }
+          };
+          
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify(sessionConfig));
+          }
+        }, 1000);
+      };
+
+      wsRef.current.onmessage = async (event) => {
+        const data = JSON.parse(event.data);
+        console.log('Received:', data.type, data);
+
+        switch (data.type) {
+          case 'session.created':
+            console.log('Session created');
+            break;
+            
+          case 'session.updated':
+            console.log('Session updated, starting conversation');
+            // After session is updated, send initial greeting request
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(JSON.stringify({ type: 'response.create' }));
+            }
+            break;
+            
+          case 'response.audio.delta':
+            if (audioQueueRef.current && data.delta) {
+              const binaryString = atob(data.delta);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              await audioQueueRef.current.addToQueue(bytes);
+            }
+            setIsAIResponding(true);
+            break;
+            
+          case 'response.audio.done':
+            setIsAIResponding(false);
+            break;
+            
+          case 'response.audio_transcript.delta':
+            if (data.delta) {
+              // Update or add AI message with transcript
+              setMessages(prev => {
+                const lastMessage = prev[prev.length - 1];
+                if (lastMessage && lastMessage.type === 'ai') {
+                  return [
+                    ...prev.slice(0, -1),
+                    { ...lastMessage, content: lastMessage.content + data.delta }
+                  ];
+                } else {
+                  return [...prev, {
+                    id: Date.now().toString(),
+                    type: 'ai',
+                    content: data.delta,
+                    timestamp: new Date()
+                  }];
+                }
+              });
+            }
+            break;
+            
+          case 'input_audio_buffer.speech_started':
+            console.log('User started speaking');
+            break;
+            
+          case 'input_audio_buffer.speech_stopped':
+            console.log('User stopped speaking');
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(JSON.stringify({ type: 'response.create' }));
+            }
+            break;
+        }
+      };
+
+      wsRef.current.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setIsProcessing(false);
+        toast({
+          title: "Connection Error",
+          description: "Failed to connect to interview service",
+          variant: "destructive",
+        });
+      };
+
+      wsRef.current.onclose = () => {
+        console.log('WebSocket disconnected');
+        setInterviewStarted(false);
+        setIsRecording(false);
+        setIsAIResponding(false);
+        setIsProcessing(false);
+      };
+
+    } catch (error) {
+      console.error('Error starting interview:', error);
+      setIsProcessing(false);
+      toast({
+        title: "Error",
+        description: "Failed to start interview session",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      audioRecorderRef.current = new AudioRecorder((audioData) => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          const encodedAudio = encodeAudioForAPI(audioData);
+          wsRef.current.send(JSON.stringify({
+            type: 'input_audio_buffer.append',
+            audio: encodedAudio
+          }));
+        }
+      });
+
+      await audioRecorderRef.current.start();
+      setIsRecording(true);
+      
+      toast({
+        title: "Recording Started",
+        description: "Speak your answer to the interviewer",
+      });
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      toast({
+        title: "Recording Error",
+        description: "Could not access microphone",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (audioRecorderRef.current) {
+      audioRecorderRef.current.stop();
+      audioRecorderRef.current = null;
+    }
+    setIsRecording(false);
+  };
+
+  const endInterview = () => {
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
+    if (audioRecorderRef.current) {
+      audioRecorderRef.current.stop();
+    }
+    
+    setInterviewStarted(false);
+    setIsRecording(false);
+    setIsAIResponding(false);
+    setMessages([]);
     
     toast({
       title: "Interview Ended",
-      description: "Your interview has been ended. You can view the feedback in the History tab.",
-    });
-  };
-  
-  const handleResetInterview = () => {
-    setIsInterviewActive(true);
-    setQuestionIndex(0);
-    setInterviewType('frontend');
-    
-    setChatMessages([
-      {
-        role: 'assistant',
-        content: "Hello! I'm your interview coach for today. We'll be conducting a mock interview for a Frontend Developer position. Are you ready to begin?",
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-    ]);
-    
-    toast({
-      title: "Interview Reset",
-      description: "The interview has been reset. You can start fresh now.",
+      description: "Great job! Practice makes perfect.",
     });
   };
 
-  const handleInterviewTypeChange = (value: string) => {
-    setInterviewType(value);
-  };
+  if (!interviewStarted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
+          <div className="container mx-auto py-4 px-4">
+            <div className="flex items-center justify-between">
+              <Button
+                variant="ghost"
+                onClick={() => navigate('/')}
+                className="flex items-center space-x-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back to Home</span>
+              </Button>
+              <h1 className="text-xl font-semibold text-gray-900">Mock Interview Setup</h1>
+              <div></div>
+            </div>
+          </div>
+        </header>
+
+        <div className="container mx-auto px-4 py-12">
+          <div className="max-w-2xl mx-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl text-center">Start Your Mock Interview</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <RoleSelector onRoleSelect={setSelectedRole} />
+                
+                {selectedRole && (
+                  <div className="text-center space-y-4">
+                    <p className="text-gray-600">
+                      Selected Role: <span className="font-semibold text-indigo-600">{selectedRole}</span>
+                    </p>
+                    <Button
+                      onClick={startInterview}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3"
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Starting Interview...
+                        </>
+                      ) : (
+                        'Begin Audio Interview'
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <MainLayout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Mock Interviews</h1>
-            <p className="text-gray-600 mt-1">Practice interviews with AI and get personalized feedback</p>
-          </div>
-          <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
-            <DialogTrigger asChild>
-              <Button 
-                className="mt-4 md:mt-0 bg-careerGpt-indigo hover:bg-careerGpt-indigo/90"
-              >
-                <Calendar className="mr-2 h-4 w-4" /> Schedule Interview
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Schedule Mock Interview</DialogTitle>
-                <DialogDescription>
-                  Select a date, time, and type of interview you'd like to practice.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <label className="text-right text-sm font-medium col-span-1">Date</label>
-                  <Input type="date" className="col-span-3" defaultValue={new Date().toISOString().split('T')[0]} />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <label className="text-right text-sm font-medium col-span-1">Time</label>
-                  <Input type="time" className="col-span-3" defaultValue="10:00" />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <label className="text-right text-sm font-medium col-span-1">Type</label>
-                  <Select defaultValue="technical">
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select interview type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="technical">Technical</SelectItem>
-                      <SelectItem value="behavioral">Behavioral</SelectItem>
-                      <SelectItem value="mix">Mixed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <label className="text-right text-sm font-medium col-span-1">Position</label>
-                  <Select defaultValue="frontend">
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select position" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="frontend">Frontend Developer</SelectItem>
-                      <SelectItem value="backend">Backend Developer</SelectItem>
-                      <SelectItem value="fullstack">Full Stack Developer</SelectItem>
-                      <SelectItem value="design">UI/UX Designer</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
+        <div className="container mx-auto py-4 px-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                {isAIResponding ? (
+                  <Volume2 className="h-4 w-4 text-white animate-pulse" />
+                ) : (
+                  <Mic className="h-4 w-4 text-white" />
+                )}
               </div>
-              <DialogFooter>
-                <Button type="submit" onClick={handleScheduleInterview}>Schedule</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        <Tabs defaultValue="simulator" value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="mb-8">
-            <TabsTrigger value="simulator" className="text-sm sm:text-base">
-              <MessagesSquare className="h-4 w-4 mr-2" /> Interview Simulator
-            </TabsTrigger>
-            <TabsTrigger value="scheduled" className="text-sm sm:text-base">
-              <Calendar className="h-4 w-4 mr-2" /> Scheduled Interviews
-            </TabsTrigger>
-            <TabsTrigger value="history" className="text-sm sm:text-base">
-              <Clock className="h-4 w-4 mr-2" /> History
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="simulator">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2">
-                <Card className="h-[600px] flex flex-col">
-                  <CardHeader>
-                    <CardTitle>Frontend Developer Interview</CardTitle>
-                    <CardDescription>
-                      Practice technical and behavioral questions for a frontend developer role
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-grow overflow-auto p-4">
-                    <div className="space-y-4">
-                      {chatMessages.map((msg, index) => (
-                        <div
-                          key={index}
-                          className={`flex ${
-                            msg.role === 'user' ? 'justify-end' : 'justify-start'
-                          }`}
-                        >
-                          <div
-                            className={`max-w-[80%] rounded-lg p-3 ${
-                              msg.role === 'user'
-                                ? 'bg-careerGpt-indigo text-white'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}
-                          >
-                            <div className="flex items-center mb-1">
-                              {msg.role === 'assistant' ? (
-                                <Bot className="h-4 w-4 mr-1" />
-                              ) : (
-                                <User className="h-4 w-4 mr-1" />
-                              )}
-                              <span className="text-xs opacity-70">{msg.timestamp}</span>
-                            </div>
-                            <p className="text-sm">{msg.content}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="border-t">
-                    <div className="flex w-full items-center space-x-2">
-                      <Input
-                        placeholder={isInterviewActive ? "Type your response..." : "Interview has ended. Reset to start again."}
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        className="flex-1"
-                        disabled={!isInterviewActive}
-                      />
-                      <Button 
-                        type="submit" 
-                        size="icon" 
-                        onClick={handleSendMessage}
-                        disabled={!isInterviewActive}
-                        className={!isInterviewActive ? "opacity-50 cursor-not-allowed" : ""}
-                      >
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardFooter>
-                </Card>
-              </div>
-
               <div>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Interview Info</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Position</h3>
-                      <p className="text-gray-900">Frontend Developer</p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Focus Areas</h3>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                          React
-                        </span>
-                        <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                          JavaScript
-                        </span>
-                        <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                          CSS
-                        </span>
-                        <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                          Problem Solving
-                        </span>
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Resume Used</h3>
-                      <div className="flex items-center mt-1">
-                        <FileText className="h-4 w-4 mr-2 text-gray-500" />
-                        <span className="text-gray-900">Frontend_Resume.pdf</span>
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Interview Type</h3>
-                      <p className="text-gray-900">Technical & Behavioral</p>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex flex-col space-y-4">
-                    <Button variant="outline" className="w-full flex items-center justify-center" onClick={handleEndInterview} disabled={!isInterviewActive}>
-                      <StopCircle className="h-4 w-4 mr-2" />
-                      End Interview
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      className="w-full text-red-500 hover:text-red-700 hover:bg-red-50 flex items-center justify-center"
-                      onClick={handleResetInterview}
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Reset Interview
-                    </Button>
-                  </CardFooter>
-                </Card>
+                <h1 className="text-lg font-semibold text-gray-900">
+                  {selectedRole} Interview
+                </h1>
+                <p className="text-sm text-gray-600">
+                  {isAIResponding ? 'AI is speaking...' : 'Ready for your response'}
+                </p>
               </div>
             </div>
-          </TabsContent>
+            <Button
+              variant="outline"
+              onClick={endInterview}
+              className="text-red-600 hover:text-red-700"
+            >
+              End Interview
+            </Button>
+          </div>
+        </div>
+      </header>
 
-          <TabsContent value="scheduled">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <ScheduledInterviewCard
-                title="Frontend Developer Technical Interview"
-                date="Apr 18, 2023"
-                time="2:00 PM"
-                duration="45 minutes"
-                interviewType="Technical"
-              />
-              
-              <ScheduledInterviewCard
-                title="Behavioral Interview Practice"
-                date="Apr 20, 2023"
-                time="10:00 AM"
-                duration="30 minutes"
-                interviewType="Behavioral"
-              />
-              
-              <Card className="bg-gray-50 border-dashed border-2 flex flex-col items-center justify-center py-8 hover:bg-gray-100 transition-colors cursor-pointer" onClick={() => setShowScheduleDialog(true)}>
-                <Calendar className="h-10 w-10 text-gray-400 mb-2" />
-                <p className="text-gray-600 font-medium">Schedule New Interview</p>
-              </Card>
-            </div>
-          </TabsContent>
+      <div className="container mx-auto px-4 py-6">
+        <div className="max-w-4xl mx-auto">
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {messages.length === 0 ? (
+                  <div className="text-center text-gray-600 py-8">
+                    <p>Interview is starting... The AI interviewer will speak to you shortly.</p>
+                  </div>
+                ) : (
+                  messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                          message.type === 'user'
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-200 text-gray-900'
+                        }`}
+                      >
+                        <p className="text-sm">{message.content}</p>
+                        <p className="text-xs opacity-70 mt-1">
+                          {message.timestamp.toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-          <TabsContent value="history">
-            <div className="space-y-6">
-              <CompletedInterviewCard
-                title="Software Engineer Technical Interview"
-                date="Apr 10, 2023"
-                duration="45 minutes"
-                score={83}
-                strengths={["Problem solving approach", "JavaScript knowledge", "Communication"]}
-                improvements={["System design explanations", "Time management"]}
-              />
-              
-              <CompletedInterviewCard
-                title="Product Manager Case Study"
-                date="Apr 5, 2023"
-                duration="60 minutes"
-                score={91}
-                strengths={["Market analysis", "User-focused thinking", "Strategic planning"]}
-                improvements={["More quantitative approach", "Competitor analysis"]}
-              />
-              
-              <CompletedInterviewCard
-                title="Full Stack Developer Interview"
-                date="Mar 28, 2023"
-                duration="50 minutes"
-                score={78}
-                strengths={["Backend knowledge", "Database design", "API design"]}
-                improvements={["Frontend framework knowledge", "CSS positioning", "Responsive design"]}
-              />
+          <div className="text-center">
+            <div className="flex justify-center items-center space-x-4">
+              {!isRecording ? (
+                <Button
+                  onClick={startRecording}
+                  className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-full"
+                  disabled={isAIResponding}
+                >
+                  <Mic className="mr-2 h-5 w-5" />
+                  Start Speaking
+                </Button>
+              ) : (
+                <Button
+                  onClick={stopRecording}
+                  className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-full animate-pulse"
+                >
+                  <MicOff className="mr-2 h-5 w-5" />
+                  Stop Recording
+                </Button>
+              )}
             </div>
-          </TabsContent>
-        </Tabs>
+            
+            <p className="text-sm text-gray-600 mt-4">
+              {isAIResponding 
+                ? 'AI is responding...' 
+                : isRecording 
+                ? 'Listening to your response...' 
+                : 'Click to speak your answer'
+              }
+            </p>
+          </div>
+        </div>
       </div>
-    </MainLayout>
+    </div>
   );
 };
-
-interface ScheduledInterviewCardProps {
-  title: string;
-  date: string;
-  time: string;
-  duration: string;
-  interviewType: string;
-}
-
-const ScheduledInterviewCard = ({
-  title,
-  date,
-  time,
-  duration,
-  interviewType,
-}: ScheduledInterviewCardProps) => (
-  <Card>
-    <CardHeader>
-      <CardTitle className="text-lg">{title}</CardTitle>
-      <CardDescription>
-        {date} at {time} ({duration})
-      </CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-sm font-medium text-gray-500">Interview Type</h3>
-          <div className="flex items-center mt-1">
-            <span className="bg-careerGpt-indigo/10 text-careerGpt-indigo rounded px-2 py-1 text-xs font-medium">
-              {interviewType}
-            </span>
-          </div>
-        </div>
-        <div>
-          <h3 className="text-sm font-medium text-gray-500">Focus Areas</h3>
-          <div className="flex flex-wrap gap-2 mt-1">
-            <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">
-              Problem Solving
-            </span>
-            <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">
-              Communication
-            </span>
-            {interviewType === "Technical" && (
-              <>
-                <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                  JavaScript
-                </span>
-                <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                  React
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </CardContent>
-    <CardFooter className="flex space-x-3">
-      <Button className="flex-1 bg-careerGpt-indigo hover:bg-careerGpt-indigo/90">Prepare</Button>
-      <Button variant="outline" className="flex-1">Reschedule</Button>
-    </CardFooter>
-  </Card>
-);
-
-interface CompletedInterviewCardProps {
-  title: string;
-  date: string;
-  duration: string;
-  score: number;
-  strengths: string[];
-  improvements: string[];
-}
-
-const CompletedInterviewCard = ({
-  title,
-  date,
-  duration,
-  score,
-  strengths,
-  improvements,
-}: CompletedInterviewCardProps) => (
-  <Card>
-    <CardHeader>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-        <div>
-          <CardTitle className="text-lg">{title}</CardTitle>
-          <CardDescription>
-            {date} • {duration}
-          </CardDescription>
-        </div>
-        <div className="mt-2 sm:mt-0">
-          <div 
-            className={`text-lg font-bold rounded-full h-12 w-12 flex items-center justify-center ${
-              score >= 90 
-                ? 'bg-green-100 text-green-800' 
-                : score >= 80 
-                ? 'bg-blue-100 text-blue-800' 
-                : 'bg-orange-100 text-orange-800'
-            }`}
-          >
-            {score}%
-          </div>
-        </div>
-      </div>
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-sm font-medium text-gray-900">Strengths</h3>
-          <ul className="mt-2 space-y-1">
-            {strengths.map((strength, index) => (
-              <li key={index} className="text-sm text-gray-600 flex items-start">
-                <span className="text-green-500 mr-2">✓</span> {strength}
-              </li>
-            ))}
-          </ul>
-        </div>
-        
-        <div>
-          <h3 className="text-sm font-medium text-gray-900">Areas for Improvement</h3>
-          <ul className="mt-2 space-y-1">
-            {improvements.map((improvement, index) => (
-              <li key={index} className="text-sm text-gray-600 flex items-start">
-                <span className="text-orange-500 mr-2">•</span> {improvement}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </CardContent>
-    <CardFooter>
-      <Button className="w-full bg-careerGpt-indigo hover:bg-careerGpt-indigo/90">
-        View Full Feedback
-      </Button>
-    </CardFooter>
-  </Card>
-);
 
 export default Interviews;
