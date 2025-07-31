@@ -71,9 +71,9 @@ const Interviews = () => {
       setIsProcessing(true);
       
       // Initialize WebSocket connection to your edge function
-      const wsUrl = `wss://${window.location.hostname.includes('localhost') 
-        ? 'localhost:54321' 
-        : window.location.hostname.replace('.lovableproject.com', '')}.functions.supabase.co/functions/v1/realtime-interview`;
+      const wsUrl = window.location.hostname.includes('localhost') 
+        ? 'ws://localhost:54321/functions/v1/realtime-interview'
+        : 'wss://amayklqjcnwejshnzwlq.functions.supabase.co/functions/v1/realtime-interview';
       
       wsRef.current = new WebSocket(wsUrl);
       
