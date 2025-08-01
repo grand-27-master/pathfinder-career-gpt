@@ -5,7 +5,34 @@ import { Mic, MicOff, Volume2, ArrowLeft, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import RoleSelector from '@/components/Interview/RoleSelector';
-import { AudioRecorder, encodeAudioForAPI, AudioQueue } from '@/utils/audioUtils';
+import { supabase } from '@/integrations/supabase/client';
+
+// Type declarations for Web Speech API
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: any) => void) | null;
+  onend: (() => void) | null;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: {
+      new (): SpeechRecognition;
+    };
+    webkitSpeechRecognition: {
+      new (): SpeechRecognition;
+    };
+  }
+}
 
 interface Message {
   id: string;
@@ -19,30 +46,52 @@ const Interviews = () => {
   const { toast } = useToast();
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isAIResponding, setIsAIResponding] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [interviewStarted, setInterviewStarted] = useState(false);
   
-  const audioRecorderRef = useRef<AudioRecorder | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioQueueRef = useRef<AudioQueue | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const synthRef = useRef<SpeechSynthesis | null>(null);
 
   useEffect(() => {
-    // Initialize audio context
-    audioContextRef.current = new AudioContext();
-    audioQueueRef.current = new AudioQueue(audioContextRef.current);
+    // Initialize Speech APIs
+    if ('speechSynthesis' in window) {
+      synthRef.current = window.speechSynthesis;
+    }
+
+    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
+
+      recognitionRef.current.onresult = async (event) => {
+        const transcript = event.results[0][0].transcript;
+        addMessage('user', transcript);
+        setIsListening(false);
+        await getAIResponse(transcript);
+      };
+
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+        toast({
+          title: "Speech Recognition Error",
+          description: "Could not process your speech. Please try again.",
+          variant: "destructive",
+        });
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
 
     return () => {
-      if (audioRecorderRef.current) {
-        audioRecorderRef.current.stop();
-      }
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
+      if (synthRef.current) {
+        synthRef.current.cancel();
       }
     };
   }, []);
@@ -57,6 +106,78 @@ const Interviews = () => {
     setMessages(prev => [...prev, newMessage]);
   };
 
+  const getAIResponse = async (userMessage: string) => {
+    setIsProcessing(true);
+    
+    try {
+      const conversationHistory = messages.map(msg => ({
+        role: msg.type === 'user' ? 'user' : 'assistant',
+        content: msg.content
+      }));
+
+      const { data, error } = await supabase.functions.invoke('realtime-interview', {
+        body: {
+          message: userMessage,
+          conversationHistory,
+          role: selectedRole
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data.success && data.response) {
+        addMessage('ai', data.response);
+        await speakText(data.response);
+      } else {
+        throw new Error('Failed to get AI response');
+      }
+    } catch (error) {
+      console.error('Error getting AI response:', error);
+      toast({
+        title: "AI Response Error",
+        description: "Failed to get response from AI interviewer",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const speakText = async (text: string): Promise<void> => {
+    return new Promise((resolve) => {
+      if (!synthRef.current) {
+        resolve();
+        return;
+      }
+
+      // Cancel any ongoing speech
+      synthRef.current.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+      };
+
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        resolve();
+      };
+
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        resolve();
+      };
+
+      synthRef.current.speak(utterance);
+    });
+  };
+
   const startInterview = async () => {
     if (!selectedRole) {
       toast({
@@ -67,196 +188,53 @@ const Interviews = () => {
       return;
     }
 
-    try {
-      setIsProcessing(true);
-      
-      // Initialize WebSocket connection to your edge function
-      const wsUrl = window.location.hostname.includes('localhost') 
-        ? 'ws://localhost:54321/functions/v1/realtime-interview'
-        : 'wss://amayklqjcnwejshnzwlq.functions.supabase.co/functions/v1/realtime-interview';
-      
-      wsRef.current = new WebSocket(wsUrl);
-      
-      wsRef.current.onopen = () => {
-        console.log('WebSocket connected');
-        setIsProcessing(false);
-        setInterviewStarted(true);
-        
-        // Send initial session configuration after connection
-        setTimeout(() => {
-          const sessionConfig = {
-            type: 'session.update',
-            session: {
-              modalities: ['text', 'audio'],
-              instructions: `You are an AI interviewer conducting a mock interview for a ${selectedRole} position. Ask relevant questions for this role, provide helpful feedback, and maintain a professional yet friendly tone. Start with a greeting and your first question.`,
-              voice: 'alloy',
-              input_audio_format: 'pcm16',
-              output_audio_format: 'pcm16',
-              input_audio_transcription: {
-                model: 'whisper-1'
-              },
-              turn_detection: {
-                type: 'server_vad',
-                threshold: 0.5,
-                prefix_padding_ms: 300,
-                silence_duration_ms: 1000
-              },
-              temperature: 0.8,
-              max_response_output_tokens: 'inf'
-            }
-          };
-          
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify(sessionConfig));
-          }
-        }, 1000);
-      };
-
-      wsRef.current.onmessage = async (event) => {
-        const data = JSON.parse(event.data);
-        console.log('Received:', data.type, data);
-
-        switch (data.type) {
-          case 'session.created':
-            console.log('Session created');
-            break;
-            
-          case 'session.updated':
-            console.log('Session updated, starting conversation');
-            // After session is updated, send initial greeting request
-            if (wsRef.current?.readyState === WebSocket.OPEN) {
-              wsRef.current.send(JSON.stringify({ type: 'response.create' }));
-            }
-            break;
-            
-          case 'response.audio.delta':
-            if (audioQueueRef.current && data.delta) {
-              const binaryString = atob(data.delta);
-              const bytes = new Uint8Array(binaryString.length);
-              for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-              }
-              await audioQueueRef.current.addToQueue(bytes);
-            }
-            setIsAIResponding(true);
-            break;
-            
-          case 'response.audio.done':
-            setIsAIResponding(false);
-            break;
-            
-          case 'response.audio_transcript.delta':
-            if (data.delta) {
-              // Update or add AI message with transcript
-              setMessages(prev => {
-                const lastMessage = prev[prev.length - 1];
-                if (lastMessage && lastMessage.type === 'ai') {
-                  return [
-                    ...prev.slice(0, -1),
-                    { ...lastMessage, content: lastMessage.content + data.delta }
-                  ];
-                } else {
-                  return [...prev, {
-                    id: Date.now().toString(),
-                    type: 'ai',
-                    content: data.delta,
-                    timestamp: new Date()
-                  }];
-                }
-              });
-            }
-            break;
-            
-          case 'input_audio_buffer.speech_started':
-            console.log('User started speaking');
-            break;
-            
-          case 'input_audio_buffer.speech_stopped':
-            console.log('User stopped speaking');
-            if (wsRef.current?.readyState === WebSocket.OPEN) {
-              wsRef.current.send(JSON.stringify({ type: 'response.create' }));
-            }
-            break;
-        }
-      };
-
-      wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setIsProcessing(false);
-        toast({
-          title: "Connection Error",
-          description: "Failed to connect to interview service",
-          variant: "destructive",
-        });
-      };
-
-      wsRef.current.onclose = () => {
-        console.log('WebSocket disconnected');
-        setInterviewStarted(false);
-        setIsRecording(false);
-        setIsAIResponding(false);
-        setIsProcessing(false);
-      };
-
-    } catch (error) {
-      console.error('Error starting interview:', error);
-      setIsProcessing(false);
-      toast({
-        title: "Error",
-        description: "Failed to start interview session",
-        variant: "destructive",
-      });
-    }
+    setInterviewStarted(true);
+    
+    // Start with AI greeting
+    const greeting = `Hello! I'm your AI interviewer today. I'll be conducting a mock interview for the ${selectedRole} position. Let's begin with an introduction - please tell me about yourself and why you're interested in this role.`;
+    
+    addMessage('ai', greeting);
+    await speakText(greeting);
   };
 
-  const startRecording = async () => {
-    try {
-      audioRecorderRef.current = new AudioRecorder((audioData) => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          const encodedAudio = encodeAudioForAPI(audioData);
-          wsRef.current.send(JSON.stringify({
-            type: 'input_audio_buffer.append',
-            audio: encodedAudio
-          }));
-        }
-      });
-
-      await audioRecorderRef.current.start();
-      setIsRecording(true);
-      
+  const startListening = () => {
+    if (!recognitionRef.current) {
       toast({
-        title: "Recording Started",
-        description: "Speak your answer to the interviewer",
-      });
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      toast({
-        title: "Recording Error",
-        description: "Could not access microphone",
+        title: "Speech Recognition Not Available",
+        description: "Your browser doesn't support speech recognition",
         variant: "destructive",
       });
+      return;
     }
+
+    if (isSpeaking) {
+      synthRef.current?.cancel();
+      setIsSpeaking(false);
+    }
+
+    setIsListening(true);
+    recognitionRef.current.start();
   };
 
-  const stopRecording = () => {
-    if (audioRecorderRef.current) {
-      audioRecorderRef.current.stop();
-      audioRecorderRef.current = null;
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
     }
-    setIsRecording(false);
+    setIsListening(false);
   };
 
   const endInterview = () => {
-    if (wsRef.current) {
-      wsRef.current.close();
+    if (synthRef.current) {
+      synthRef.current.cancel();
     }
-    if (audioRecorderRef.current) {
-      audioRecorderRef.current.stop();
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
     }
     
     setInterviewStarted(false);
-    setIsRecording(false);
-    setIsAIResponding(false);
+    setIsListening(false);
+    setIsSpeaking(false);
+    setIsProcessing(false);
     setMessages([]);
     
     toast({
@@ -304,14 +282,7 @@ const Interviews = () => {
                       className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3"
                       disabled={isProcessing}
                     >
-                      {isProcessing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Starting Interview...
-                        </>
-                      ) : (
-                        'Begin Audio Interview'
-                      )}
+                      Begin Audio Interview
                     </Button>
                   </div>
                 )}
@@ -330,7 +301,7 @@ const Interviews = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                {isAIResponding ? (
+                {isSpeaking ? (
                   <Volume2 className="h-4 w-4 text-white animate-pulse" />
                 ) : (
                   <Mic className="h-4 w-4 text-white" />
@@ -341,7 +312,7 @@ const Interviews = () => {
                   {selectedRole} Interview
                 </h1>
                 <p className="text-sm text-gray-600">
-                  {isAIResponding ? 'AI is speaking...' : 'Ready for your response'}
+                  {isSpeaking ? 'AI is speaking...' : isProcessing ? 'Processing...' : 'Ready for your response'}
                 </p>
               </div>
             </div>
@@ -392,18 +363,18 @@ const Interviews = () => {
 
           <div className="text-center">
             <div className="flex justify-center items-center space-x-4">
-              {!isRecording ? (
+              {!isListening ? (
                 <Button
-                  onClick={startRecording}
+                  onClick={startListening}
                   className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-full"
-                  disabled={isAIResponding}
+                  disabled={isSpeaking || isProcessing}
                 >
                   <Mic className="mr-2 h-5 w-5" />
                   Start Speaking
                 </Button>
               ) : (
                 <Button
-                  onClick={stopRecording}
+                  onClick={stopListening}
                   className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-full animate-pulse"
                 >
                   <MicOff className="mr-2 h-5 w-5" />
@@ -413,9 +384,11 @@ const Interviews = () => {
             </div>
             
             <p className="text-sm text-gray-600 mt-4">
-              {isAIResponding 
-                ? 'AI is responding...' 
-                : isRecording 
+              {isSpeaking 
+                ? 'AI is speaking...' 
+                : isProcessing
+                ? 'Processing your response...'
+                : isListening 
                 ? 'Listening to your response...' 
                 : 'Click to speak your answer'
               }
