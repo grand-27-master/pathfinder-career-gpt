@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import RoleSelector from '@/components/Interview/RoleSelector';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 // Type declarations for Web Speech API
 interface SpeechRecognitionEvent extends Event {
@@ -44,12 +45,14 @@ interface Message {
 const Interviews = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [interviewStarted, setInterviewStarted] = useState(false);
+  const [interviewStartTime, setInterviewStartTime] = useState<Date | null>(null);
   
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
@@ -179,6 +182,11 @@ const Interviews = () => {
   };
 
   const startInterview = async () => {
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+
     if (!selectedRole) {
       toast({
         title: "Please select a role",
@@ -189,6 +197,7 @@ const Interviews = () => {
     }
 
     setInterviewStarted(true);
+    setInterviewStartTime(new Date());
     
     // Start with AI greeting
     const greeting = `Hello! I'm your AI interviewer today. I'll be conducting a mock interview for the ${selectedRole} position. Let's begin with an introduction - please tell me about yourself and why you're interested in this role.`;
@@ -223,7 +232,39 @@ const Interviews = () => {
     setIsListening(false);
   };
 
-  const endInterview = () => {
+  const saveInterview = async () => {
+    if (!user || !interviewStartTime) return;
+
+    const duration = Math.floor((new Date().getTime() - interviewStartTime.getTime()) / 1000);
+    const transcript = messages.map(msg => `${msg.type === 'user' ? 'User' : 'AI'}: ${msg.content}`).join('\n\n');
+
+    try {
+      const { error } = await supabase
+        .from('interviews')
+        .insert({
+          user_id: user.id,
+          role: selectedRole,
+          transcript,
+          duration_seconds: duration
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Interview Saved",
+        description: "Your interview has been saved to your profile.",
+      });
+    } catch (error: any) {
+      console.error('Error saving interview:', error);
+      toast({
+        title: "Error saving interview",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const endInterview = async () => {
     if (synthRef.current) {
       synthRef.current.cancel();
     }
@@ -231,11 +272,17 @@ const Interviews = () => {
       recognitionRef.current.stop();
     }
     
+    // Save interview if user is logged in
+    if (user && messages.length > 0) {
+      await saveInterview();
+    }
+    
     setInterviewStarted(false);
     setIsListening(false);
     setIsSpeaking(false);
     setIsProcessing(false);
     setMessages([]);
+    setInterviewStartTime(null);
     
     toast({
       title: "Interview Ended",

@@ -1,13 +1,19 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { MessagesSquare, Mic, Volume2, Brain } from 'lucide-react';
+import { MessagesSquare, Mic, Volume2, Brain, User } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleStartInterview = () => {
-    navigate('/interview');
+    if (!user) {
+      navigate('/auth');
+    } else {
+      navigate('/interview');
+    }
   };
 
   return (
@@ -15,12 +21,33 @@ const Index = () => {
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
         <div className="container mx-auto py-4 px-4">
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
                 <MessagesSquare className="h-6 w-6 text-white" />
               </div>
               <h1 className="text-2xl font-bold text-gray-900">InterviewGPT</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              {user ? (
+                <>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate('/profile')}
+                    className="flex items-center space-x-2"
+                  >
+                    <User className="h-4 w-4" />
+                    <span>Profile</span>
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/auth')}
+                >
+                  Sign In
+                </Button>
+              )}
             </div>
           </div>
         </div>
