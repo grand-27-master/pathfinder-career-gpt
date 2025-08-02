@@ -20,6 +20,8 @@ export type Database = {
           created_at: string
           duration_seconds: number | null
           id: string
+          resume_analysis: string | null
+          resume_url: string | null
           role: string
           transcript: string | null
           updated_at: string
@@ -30,6 +32,8 @@ export type Database = {
           created_at?: string
           duration_seconds?: number | null
           id?: string
+          resume_analysis?: string | null
+          resume_url?: string | null
           role: string
           transcript?: string | null
           updated_at?: string
@@ -40,6 +44,8 @@ export type Database = {
           created_at?: string
           duration_seconds?: number | null
           id?: string
+          resume_analysis?: string | null
+          resume_url?: string | null
           role?: string
           transcript?: string | null
           updated_at?: string

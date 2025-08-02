@@ -5,6 +5,7 @@ import { Mic, MicOff, Volume2, ArrowLeft, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import RoleSelector from '@/components/Interview/RoleSelector';
+import ResumeUpload from '@/components/ResumeUpload';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -53,6 +54,7 @@ const Interviews = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [interviewStarted, setInterviewStarted] = useState(false);
   const [interviewStartTime, setInterviewStartTime] = useState<Date | null>(null);
+  const [resumeUrl, setResumeUrl] = useState<string>('');
   
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
@@ -122,7 +124,8 @@ const Interviews = () => {
         body: {
           message: userMessage,
           conversationHistory,
-          role: selectedRole
+          role: selectedRole,
+          resumeUrl: resumeUrl || null
         }
       });
 
@@ -245,7 +248,8 @@ const Interviews = () => {
           user_id: user.id,
           role: selectedRole,
           transcript,
-          duration_seconds: duration
+          duration_seconds: duration,
+          resume_url: resumeUrl || null
         });
 
       if (error) throw error;
@@ -302,39 +306,47 @@ const Interviews = () => {
                 className="flex items-center space-x-2"
               >
                 <ArrowLeft className="h-4 w-4" />
-                <span>Back to Home</span>
+                <span className="hidden sm:inline">Back to Home</span>
+                <span className="sm:hidden">Back</span>
               </Button>
-              <h1 className="text-xl font-semibold text-gray-900">Mock Interview Setup</h1>
-              <div></div>
+              <h1 className="text-lg sm:text-xl font-semibold text-gray-900">Mock Interview Setup</h1>
+              <div className="w-20"></div>
             </div>
           </div>
         </header>
 
-        <div className="container mx-auto px-4 py-12">
-          <div className="max-w-2xl mx-auto">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-2xl text-center">Start Your Mock Interview</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <RoleSelector onRoleSelect={setSelectedRole} />
-                
-                {selectedRole && (
-                  <div className="text-center space-y-4">
-                    <p className="text-gray-600">
-                      Selected Role: <span className="font-semibold text-indigo-600">{selectedRole}</span>
-                    </p>
-                    <Button
-                      onClick={startInterview}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3"
-                      disabled={isProcessing}
-                    >
-                      Begin Audio Interview
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+        <div className="container mx-auto px-4 py-6 sm:py-12">
+          <div className="max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl sm:text-2xl">Interview Setup</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <RoleSelector onRoleSelect={setSelectedRole} />
+                  
+                  {selectedRole && (
+                    <div className="text-center space-y-4">
+                      <p className="text-gray-600 text-sm sm:text-base">
+                        Selected Role: <span className="font-semibold text-indigo-600">{selectedRole}</span>
+                      </p>
+                      <Button
+                        onClick={startInterview}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3"
+                        disabled={isProcessing}
+                      >
+                        Begin Audio Interview
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <ResumeUpload 
+                onResumeUploaded={setResumeUrl}
+                currentResume={resumeUrl}
+              />
+            </div>
           </div>
         </div>
       </div>

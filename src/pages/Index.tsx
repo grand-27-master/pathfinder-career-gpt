@@ -17,7 +17,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-indigo-900">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
         <div className="container mx-auto py-4 px-4">
@@ -54,21 +54,21 @@ const Index = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="py-20">
+      <section className="py-12 sm:py-20">
         <div className="container mx-auto px-4 text-center">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-5xl sm:text-6xl font-bold text-gray-900 mb-6 leading-tight">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
               Practice Audio Mock 
-              <span className="text-indigo-600"> Interviews</span> with AI
+              <span className="text-indigo-600 dark:text-indigo-400"> Interviews</span> with AI
             </h1>
-            <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 mb-8 sm:mb-12 max-w-2xl mx-auto">
               Improve your interview skills with realistic AI-powered voice conversations. 
-              Practice anytime, get instant feedback, and build confidence for your next interview.
+              Upload your resume for personalized questions and build confidence for your next interview.
             </p>
             
             <Button 
               size="lg" 
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-12 py-4 text-lg rounded-full"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 sm:px-12 py-3 sm:py-4 text-base sm:text-lg rounded-full w-full sm:w-auto"
               onClick={handleStartInterview}
             >
               Start Mock Interview
@@ -78,28 +78,28 @@ const Index = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-20">
+      <section className="py-12 sm:py-20">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Practice with InterviewGPT?</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Our AI interview coach provides realistic practice sessions tailored to your needs.
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">Why Practice with InterviewGPT?</h2>
+            <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+              Our AI interview coach provides realistic practice sessions tailored to your resume and needs.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-10 max-w-5xl mx-auto">
             <FeatureCard
-              icon={<Mic className="h-12 w-12 text-indigo-600" />}
+              icon={<Mic className="h-8 sm:h-12 w-8 sm:w-12 text-indigo-600" />}
               title="Voice-Based Practice"
               description="Speak naturally with our AI interviewer. Practice your verbal communication and build confidence in real conversation flow."
             />
             <FeatureCard
-              icon={<Brain className="h-12 w-12 text-purple-600" />}
-              title="AI-Powered Questions"
-              description="Get realistic, role-specific questions tailored to your target position. Practice both technical and behavioral questions."
+              icon={<Brain className="h-8 sm:h-12 w-8 sm:w-12 text-purple-600" />}
+              title="Resume-Based Questions"
+              description="Upload your resume to get personalized questions based on your experience, skills, and the role you're targeting."
             />
             <FeatureCard
-              icon={<Volume2 className="h-12 w-12 text-green-600" />}
+              icon={<Volume2 className="h-8 sm:h-12 w-8 sm:w-12 text-green-600" />}
               title="Instant Feedback"
               description="Receive immediate feedback on your responses, speaking pace, and areas for improvement after each session."
             />
@@ -108,17 +108,17 @@ const Index = () => {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 bg-white">
+      <section className="py-12 sm:py-20 bg-white dark:bg-gray-800">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">How It Works</h2>
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">How It Works</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-4xl mx-auto">
             <StepCard
               step="1"
-              title="Choose Your Role"
-              description="Select the position you're interviewing for to get relevant questions."
+              title="Upload & Choose"
+              description="Upload your resume and select the position you're interviewing for to get relevant questions."
             />
             <StepCard
               step="2"
@@ -170,10 +170,10 @@ interface FeatureCardProps {
 }
 
 const FeatureCard = ({ icon, title, description }: FeatureCardProps) => (
-  <div className="bg-white rounded-xl p-8 shadow-lg text-center hover:shadow-xl transition-shadow">
+  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 sm:p-8 shadow-lg text-center hover:shadow-xl transition-shadow">
     <div className="flex justify-center mb-4">{icon}</div>
-    <h3 className="text-xl font-semibold mb-4 text-gray-900">{title}</h3>
-    <p className="text-gray-600 leading-relaxed">{description}</p>
+    <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white">{title}</h3>
+    <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-sm sm:text-base">{description}</p>
   </div>
 );
 
@@ -185,11 +185,11 @@ interface StepCardProps {
 
 const StepCard = ({ step, title, description }: StepCardProps) => (
   <div className="text-center">
-    <div className="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-      <span className="text-white text-xl font-bold">{step}</span>
+    <div className="w-12 sm:w-16 h-12 sm:h-16 bg-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+      <span className="text-white text-lg sm:text-xl font-bold">{step}</span>
     </div>
-    <h3 className="text-xl font-semibold mb-2 text-gray-900">{title}</h3>
-    <p className="text-gray-600">{description}</p>
+    <h3 className="text-lg sm:text-xl font-semibold mb-2 text-gray-900 dark:text-white">{title}</h3>
+    <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base">{description}</p>
   </div>
 );
 
