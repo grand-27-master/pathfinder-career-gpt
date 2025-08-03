@@ -6,6 +6,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { 
+  Share2, 
+  Trash2, 
+  Copy, 
+  Download,
+  MoreVertical
+} from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Interview {
   id: string;
@@ -46,6 +70,76 @@ const Profile = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteInterview = async (interviewId: string) => {
+    try {
+      const { error } = await supabase
+        .from("interviews")
+        .delete()
+        .eq("id", interviewId);
+
+      if (error) throw error;
+
+      setInterviews(interviews.filter(interview => interview.id !== interviewId));
+      toast({
+        title: "Interview deleted",
+        description: "The interview has been deleted successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error deleting interview",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleShareTranscript = async (interview: Interview) => {
+    const shareText = `Interview Transcript - ${interview.role}\nDate: ${formatDate(interview.created_at)}\nDuration: ${formatDuration(interview.duration_seconds)}\n\n${interview.transcript}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Interview Transcript - ${interview.role}`,
+          text: shareText,
+        });
+      } catch (error) {
+        // If sharing fails, fall back to copying to clipboard
+        handleCopyTranscript(shareText);
+      }
+    } else {
+      handleCopyTranscript(shareText);
+    }
+  };
+
+  const handleCopyTranscript = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied to clipboard",
+        description: "The transcript has been copied to your clipboard.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error copying transcript",
+        description: "Unable to copy transcript to clipboard.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadTranscript = (interview: Interview) => {
+    const content = `Interview Transcript - ${interview.role}\nDate: ${formatDate(interview.created_at)}\nDuration: ${formatDuration(interview.duration_seconds)}\n\n${interview.transcript}`;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `interview-${interview.role}-${interview.created_at.split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleSignOut = async () => {
@@ -120,8 +214,58 @@ const Profile = () => {
                           {formatDate(interview.created_at)}
                         </p>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        Duration: {formatDuration(interview.duration_seconds)}
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm text-muted-foreground">
+                          Duration: {formatDuration(interview.duration_seconds)}
+                        </div>
+                        {interview.transcript && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleShareTranscript(interview)}>
+                                <Share2 className="h-4 w-4 mr-2" />
+                                Share
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleCopyTranscript(`Interview Transcript - ${interview.role}\nDate: ${formatDate(interview.created_at)}\nDuration: ${formatDuration(interview.duration_seconds)}\n\n${interview.transcript}`)}>
+                                <Copy className="h-4 w-4 mr-2" />
+                                Copy
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDownloadTranscript(interview)}>
+                                <Download className="h-4 w-4 mr-2" />
+                                Download
+                              </DropdownMenuItem>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Interview</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete this interview? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => handleDeleteInterview(interview.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                     </div>
                     {interview.transcript && (
