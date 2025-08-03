@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import RoleSelector from '@/components/Interview/RoleSelector';
 import ResumeUpload from '@/components/ResumeUpload';
+import CameraToggle from '@/components/CameraToggle';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -48,6 +49,7 @@ const Interviews = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [selectedRole, setSelectedRole] = useState<string>('');
+  const [selectedInterviewType, setSelectedInterviewType] = useState<string>('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -55,6 +57,7 @@ const Interviews = () => {
   const [interviewStarted, setInterviewStarted] = useState(false);
   const [interviewStartTime, setInterviewStartTime] = useState<Date | null>(null);
   const [resumeUrl, setResumeUrl] = useState<string>('');
+  const [cameraEnabled, setCameraEnabled] = useState(false);
   
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
@@ -125,6 +128,7 @@ const Interviews = () => {
           message: userMessage,
           conversationHistory,
           role: selectedRole,
+          interviewType: selectedInterviewType,
           resumeUrl: resumeUrl || null
         }
       });
@@ -190,10 +194,10 @@ const Interviews = () => {
       return;
     }
 
-    if (!selectedRole) {
+    if (!selectedRole || !selectedInterviewType) {
       toast({
-        title: "Please select a role",
-        description: "Choose the position you're interviewing for",
+        title: "Please complete setup",
+        description: "Choose both the role and interview type before starting",
         variant: "destructive",
       });
       return;
@@ -202,8 +206,16 @@ const Interviews = () => {
     setInterviewStarted(true);
     setInterviewStartTime(new Date());
     
-    // Start with AI greeting
-    const greeting = `Hello! I'm your AI interviewer today. I'll be conducting a mock interview for the ${selectedRole} position. Let's begin with an introduction - please tell me about yourself and why you're interested in this role.`;
+    // Start with AI greeting tailored to interview type
+    const interviewTypeLabels = {
+      'screening': 'screening',
+      'technical': 'technical',
+      'behavioral': 'behavioral',
+      'system-design': 'system design',
+      'cultural-fit': 'cultural fit'
+    };
+    
+    const greeting = `Hello! I'm your AI interviewer today. I'll be conducting a ${interviewTypeLabels[selectedInterviewType]} interview for the ${selectedRole} position. ${cameraEnabled ? 'I can see you look ready! ' : ''}Let's begin with an introduction - please tell me about yourself and why you're interested in this role.`;
     
     addMessage('ai', greeting);
     await speakText(greeting);
@@ -249,7 +261,8 @@ const Interviews = () => {
           role: selectedRole,
           transcript,
           duration_seconds: duration,
-          resume_url: resumeUrl || null
+          resume_url: resumeUrl || null,
+          resume_analysis: `Interview Type: ${selectedInterviewType}${cameraEnabled ? ' (Video)' : ' (Audio Only)'}`
         });
 
       if (error) throw error;
@@ -323,29 +336,41 @@ const Interviews = () => {
                   <CardTitle className="text-xl sm:text-2xl">Interview Setup</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <RoleSelector onRoleSelect={setSelectedRole} />
+                  <RoleSelector 
+                    onRoleSelect={setSelectedRole} 
+                    onInterviewTypeSelect={setSelectedInterviewType}
+                  />
                   
-                  {selectedRole && (
+                  {selectedRole && selectedInterviewType && (
                     <div className="text-center space-y-4">
-                      <p className="text-gray-600 text-sm sm:text-base">
-                        Selected Role: <span className="font-semibold text-indigo-600">{selectedRole}</span>
-                      </p>
+                      <div className="space-y-2">
+                        <p className="text-gray-600 text-sm sm:text-base">
+                          Selected Role: <span className="font-semibold text-indigo-600">{selectedRole}</span>
+                        </p>
+                        <p className="text-gray-600 text-sm sm:text-base">
+                          Interview Type: <span className="font-semibold text-green-600">{selectedInterviewType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                        </p>
+                      </div>
                       <Button
                         onClick={startInterview}
                         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3"
                         disabled={isProcessing}
                       >
-                        Begin Audio Interview
+                        Begin {cameraEnabled ? 'Video' : 'Audio'} Interview
                       </Button>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              <ResumeUpload 
-                onResumeUploaded={setResumeUrl}
-                currentResume={resumeUrl}
-              />
+              <div className="space-y-6">
+                <ResumeUpload 
+                  onResumeUploaded={setResumeUrl}
+                  currentResume={resumeUrl}
+                />
+                
+                <CameraToggle onCameraToggle={setCameraEnabled} />
+              </div>
             </div>
           </div>
         </div>
@@ -368,10 +393,10 @@ const Interviews = () => {
               </div>
               <div>
                 <h1 className="text-lg font-semibold text-gray-900">
-                  {selectedRole} Interview
+                  {selectedRole} - {selectedInterviewType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())} Interview
                 </h1>
                 <p className="text-sm text-gray-600">
-                  {isSpeaking ? 'AI is speaking...' : isProcessing ? 'Processing...' : 'Ready for your response'}
+                  {isSpeaking ? 'AI is speaking...' : isProcessing ? 'Processing...' : 'Ready for your response'} {cameraEnabled ? '• Video Active' : '• Audio Only'}
                 </p>
               </div>
             </div>

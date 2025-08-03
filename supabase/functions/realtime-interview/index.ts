@@ -15,6 +15,7 @@ interface RequestBody {
   message: string;
   conversationHistory: ConversationMessage[];
   role: string;
+  interviewType: string;
   resumeUrl?: string;
 }
 
@@ -126,11 +127,12 @@ function analyzeResume(content: string): {
   };
 }
 
-// Enhanced fallback response generator with resume awareness
+// Enhanced fallback response generator with resume awareness and interview type
 function generateFallbackResponse(
   message: string, 
   conversationHistory: ConversationMessage[], 
   role: string, 
+  interviewType: string,
   resumeContent?: string
 ): string {
   const messageCount = conversationHistory.length;
@@ -197,65 +199,108 @@ function generateFallbackResponse(
     }
   }
   
-  // Role-specific questions
-  const interviewQuestions = {
-    'software developer': [
-      "Tell me about a challenging project you've worked on and how you solved it.",
-      "How do you approach debugging when you encounter an error you've never seen before?",
-      "What's your experience with version control systems like Git?",
-      "Can you explain the difference between let, const, and var in JavaScript?",
-      "How do you ensure your code is maintainable and readable?",
-      "What testing frameworks have you used, and why do you think testing is important?"
-    ],
-    'software engineer': [
-      "Tell me about a challenging project you've worked on and how you solved it.",
-      "How do you approach debugging when you encounter an error you've never seen before?",
-      "What's your experience with version control systems like Git?",
-      "Can you explain the difference between let, const, and var in JavaScript?",
-      "How do you ensure your code is maintainable and readable?",
-      "What testing frameworks have you used, and why do you think testing is important?"
-    ],
-    'data scientist': [
-      "Walk me through your process for approaching a new data analysis project.",
-      "How do you handle missing or dirty data in your datasets?",
-      "What's your experience with machine learning algorithms?",
-      "Can you explain the bias-variance tradeoff?",
-      "How do you validate the performance of your models?",
-      "What tools do you use for data visualization?"
-    ],
-    'product manager': [
-      "How do you prioritize features when you have limited resources?",
-      "Tell me about a time you had to make a decision with incomplete information.",
-      "How do you gather and incorporate user feedback into product decisions?",
-      "What's your approach to working with cross-functional teams?",
-      "How do you measure the success of a product feature?",
-      "Describe your experience with agile methodologies."
-    ],
-    'marketing manager': [
-      "How do you measure the ROI of a marketing campaign?",
-      "Tell me about a time when a campaign didn't perform as expected. What did you do?",
-      "How do you stay updated with the latest marketing trends and technologies?",
-      "Describe your experience with customer segmentation and targeting.",
-      "How do you collaborate with sales teams to align on lead generation goals?"
-    ],
-    'default': [
-      "Tell me about yourself and your professional background.",
-      "What interests you most about this role?",
-      "How do you handle working under pressure?",
-      "Describe a time when you had to learn something new quickly.",
-      "What are your greatest strengths and how do they apply to this role?",
-      "Where do you see yourself in five years?"
-    ]
+  // Interview type specific questions
+  const interviewTypeQuestions = {
+    'screening': {
+      'software engineer': [
+        "Tell me about your background and what attracted you to software engineering.",
+        "What programming languages are you most comfortable with?",
+        "How do you stay updated with new technologies?",
+        "What interests you about this particular role and company?",
+        "Walk me through your recent projects."
+      ],
+      'default': [
+        "Tell me about yourself and your professional background.",
+        "What interests you most about this role?",
+        "What are your salary expectations?",
+        "Why are you looking for a new opportunity?",
+        "What do you know about our company?"
+      ]
+    },
+    'technical': {
+      'software engineer': [
+        "How would you optimize a slow database query?",
+        "Explain the difference between REST and GraphQL APIs.",
+        "How do you handle error handling in your applications?",
+        "Design a system for handling user authentication.",
+        "What's your approach to code reviews?",
+        "How would you implement caching in a web application?"
+      ],
+      'data scientist': [
+        "How would you handle a dataset with 90% missing values?",
+        "Explain the difference between supervised and unsupervised learning.",
+        "How do you prevent overfitting in machine learning models?",
+        "Walk me through building a recommendation system.",
+        "How do you evaluate model performance?"
+      ],
+      'default': [
+        "Describe your most challenging technical project.",
+        "How do you approach learning new technologies?",
+        "What tools and technologies do you work with daily?",
+        "How do you troubleshoot technical problems?"
+      ]
+    },
+    'behavioral': {
+      'software engineer': [
+        "Tell me about a time you had to work with a difficult team member.",
+        "Describe a situation where you had to meet a tight deadline.",
+        "How do you handle conflicting priorities?",
+        "Tell me about a time you made a mistake and how you handled it.",
+        "Describe a time when you had to learn something completely new."
+      ],
+      'default': [
+        "Tell me about a time you showed leadership.",
+        "Describe a challenging situation and how you overcame it.",
+        "How do you handle stress and pressure?",
+        "Tell me about a time you had to adapt to change.",
+        "Describe your ideal work environment."
+      ]
+    },
+    'system-design': {
+      'software engineer': [
+        "Design a URL shortening service like bit.ly.",
+        "How would you design a chat application like WhatsApp?",
+        "Design a file storage system like Dropbox.",
+        "How would you handle load balancing for a high-traffic website?",
+        "Design a notification system for a social media platform."
+      ],
+      'default': [
+        "How would you design a system to handle high traffic?",
+        "What considerations would you make for scalability?",
+        "How do you approach system architecture decisions?",
+        "Describe your experience with distributed systems."
+      ]
+    },
+    'cultural-fit': {
+      'default': [
+        "What values are most important to you in a workplace?",
+        "How do you prefer to receive feedback?",
+        "Describe your ideal team dynamic.",
+        "How do you handle disagreements with colleagues?",
+        "What motivates you in your work?",
+        "How do you contribute to a positive team culture?"
+      ]
+    }
   };
 
-  // Get questions for the role
+  // Get questions based on interview type and role
+  const typeQuestions = interviewTypeQuestions[interviewType] || interviewTypeQuestions['screening'];
   const roleKey = role.toLowerCase();
-  const questions = interviewQuestions[roleKey] || interviewQuestions['default'];
+  const questions = typeQuestions[roleKey] || typeQuestions['default'] || [
+    "Tell me more about your experience with this type of role.",
+    "What challenges do you expect in this position?",
+    "How do you approach professional development?"
+  ];
+
   
-  // Context-aware responses based on user message
+  // Context-aware responses based on user message and interview type
   if (lowerMessage.includes('hello') || lowerMessage.includes('introduction') || lowerMessage.includes('myself')) {
     const resumeContext = resumeContent ? " I've also had a chance to review your resume." : "";
-    return `Thank you for that introduction!${resumeContext} It's great to learn about your background. Now, let's dive deeper into your experience. ${questions[Math.floor(Math.random() * questions.length)]}`;
+    const typeContext = interviewType === 'technical' ? " Since this is a technical interview, we'll focus on your technical skills and problem-solving abilities." :
+                        interviewType === 'behavioral' ? " Since this is a behavioral interview, I'll be asking about your experiences and how you handle various situations." :
+                        interviewType === 'system-design' ? " Since this is a system design interview, we'll focus on your architectural thinking and design skills." :
+                        interviewType === 'cultural-fit' ? " Since this is a cultural fit interview, we'll explore how you work with teams and your values." : "";
+    return `Thank you for that introduction!${resumeContext}${typeContext} Now, let's proceed with a question: ${questions[Math.floor(Math.random() * questions.length)]}`;
   }
   
   if (lowerMessage.includes('project') || lowerMessage.includes('experience') || lowerMessage.includes('work')) {
@@ -282,13 +327,14 @@ serve(async (req) => {
   }
 
   try {
-    const { message, conversationHistory = [], role, resumeUrl }: RequestBody = await req.json();
+    const { message, conversationHistory = [], role, interviewType, resumeUrl }: RequestBody = await req.json();
 
-    console.log('Received interview request:', { 
-      message, 
-      role, 
+    console.log('Received interview request:', {
+      message,
+      role,
+      interviewType,
       historyLength: conversationHistory.length,
-      hasResume: !!resumeUrl 
+      hasResume: !!resumeUrl
     });
     
     // Extract resume content if provided
@@ -303,6 +349,7 @@ serve(async (req) => {
       message, 
       conversationHistory, 
       role || 'Software Developer',
+      interviewType || 'screening',
       resumeContent
     );
 
