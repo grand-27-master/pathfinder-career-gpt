@@ -112,7 +112,7 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="py-8 bg-gray-900 text-center">
-        <p className="text-gray-400">© 2025 InterviewGPT. Practice makes perfect.</p>
+        <p className="text-gray-400">© 2025 InterviewGPT.</p>
       </footer>
     </div>;
 };
