@@ -39,20 +39,91 @@ async function extractResumeContent(resumeUrl: string): Promise<string> {
   }
 }
 
-// Extract keywords from resume content
-function extractKeywords(content: string): string[] {
+// Enhanced resume analysis
+function analyzeResume(content: string): {
+  skills: string[];
+  experience: string[];
+  education: string[];
+  projects: string[];
+  companies: string[];
+} {
+  const lowerContent = content.toLowerCase();
+  
   const commonSkills = [
     'JavaScript', 'Python', 'Java', 'React', 'Node.js', 'SQL', 'AWS', 'Docker', 
     'Kubernetes', 'Git', 'Agile', 'Scrum', 'TypeScript', 'Vue.js', 'Angular',
     'MongoDB', 'PostgreSQL', 'Redis', 'GraphQL', 'REST API', 'Microservices',
     'Machine Learning', 'Data Analysis', 'Project Management', 'Leadership',
     'Communication', 'Problem Solving', 'Team Collaboration', 'HTML', 'CSS',
-    'C++', 'C#', '.NET', 'Spring', 'Django', 'Flask', 'Express', 'Laravel'
+    'C++', 'C#', '.NET', 'Spring', 'Django', 'Flask', 'Express', 'Laravel',
+    'Figma', 'Adobe', 'Photoshop', 'Illustrator', 'Sketch', 'InVision',
+    'Firebase', 'Azure', 'GCP', 'Jenkins', 'CI/CD', 'DevOps', 'Linux'
   ];
   
-  return commonSkills.filter(skill => 
-    content.toLowerCase().includes(skill.toLowerCase())
+  const skills = commonSkills.filter(skill => 
+    lowerContent.includes(skill.toLowerCase())
   );
+
+  // Extract experience indicators
+  const experiencePatterns = [
+    /(\d+)\+?\s*years?\s+(?:of\s+)?experience/gi,
+    /(\d+)\+?\s*years?\s+(?:working\s+)?(?:with|in|as)/gi,
+    /senior|lead|principal|manager|director|head of/gi,
+    /developed|built|created|implemented|designed|architected/gi
+  ];
+  
+  const experience = [];
+  experiencePatterns.forEach(pattern => {
+    const matches = content.match(pattern);
+    if (matches) experience.push(...matches.slice(0, 3));
+  });
+
+  // Extract education
+  const educationPatterns = [
+    /bachelor|master|phd|doctorate|degree/gi,
+    /university|college|institute/gi,
+    /computer science|engineering|mathematics|physics|business/gi
+  ];
+  
+  const education = [];
+  educationPatterns.forEach(pattern => {
+    const matches = content.match(pattern);
+    if (matches) education.push(...matches.slice(0, 3));
+  });
+
+  // Extract project keywords
+  const projectPatterns = [
+    /project|application|system|platform|website|app/gi,
+    /startup|company|team|collaboration/gi
+  ];
+  
+  const projects = [];
+  projectPatterns.forEach(pattern => {
+    const matches = content.match(pattern);
+    if (matches) projects.push(...matches.slice(0, 3));
+  });
+
+  // Extract company/work context
+  const companyPatterns = [
+    /(?:at|@)\s+([A-Z][a-zA-Z\s&]+(?:Inc|LLC|Corp|Ltd|Co\.?)?)/g,
+    /(?:worked|employed|joined)\s+(?:at|with)\s+([A-Z][a-zA-Z\s&]+)/g
+  ];
+  
+  const companies = [];
+  companyPatterns.forEach(pattern => {
+    const matches = [...content.matchAll(pattern)];
+    matches.forEach(match => {
+      if (match[1] && match[1].length > 2) companies.push(match[1].trim());
+    });
+  });
+
+  return {
+    skills: [...new Set(skills)],
+    experience: [...new Set(experience)].slice(0, 5),
+    education: [...new Set(education)].slice(0, 3),
+    projects: [...new Set(projects)].slice(0, 3),
+    companies: [...new Set(companies)].slice(0, 3)
+  };
 }
 
 // Enhanced fallback response generator with resume awareness
@@ -65,31 +136,64 @@ function generateFallbackResponse(
   const messageCount = conversationHistory.length;
   const lowerMessage = message.toLowerCase();
   
-  // If we have resume content, use it to generate personalized questions
+  // If we have resume content, use it to generate deeply personalized questions
   if (resumeContent && resumeContent.length > 50) {
-    const resumeKeywords = extractKeywords(resumeContent);
+    const resumeAnalysis = analyzeResume(resumeContent);
     
-    // First few questions based on resume
+    // Opening questions based on resume analysis
     if (messageCount <= 2) {
-      if (resumeKeywords.length > 0) {
-        return `Great introduction! I can see from your resume that you have experience with ${resumeKeywords.slice(0, 2).join(' and ')}. Can you tell me about a specific project where you used these technologies and what challenges you faced?`;
+      if (resumeAnalysis.skills.length > 0) {
+        const topSkills = resumeAnalysis.skills.slice(0, 2);
+        return `Thank you for that introduction! I've reviewed your resume and noticed your experience with ${topSkills.join(' and ')}. Can you walk me through a specific project where you used ${topSkills[0]} and describe the most challenging aspect you encountered?`;
       }
-    }
-    
-    if (messageCount <= 4 && resumeKeywords.length > 0) {
-      const technologies = resumeKeywords.filter(k => 
-        ['javascript', 'python', 'react', 'node', 'sql', 'aws', 'docker'].some(tech => 
-          k.toLowerCase().includes(tech)
-        )
-      );
       
-      if (technologies.length > 0) {
-        return `I notice you have experience with ${technologies[0]}. Can you walk me through how you would approach a complex problem using this technology? What's your problem-solving process?`;
+      if (resumeAnalysis.companies.length > 0) {
+        return `Great to meet you! I see from your resume that you've worked at ${resumeAnalysis.companies[0]}. Can you tell me about a significant project or achievement from your time there that you're particularly proud of?`;
       }
     }
     
+    // Technical depth questions
+    if (messageCount <= 4) {
+      if (resumeAnalysis.skills.length > 2) {
+        const techStack = resumeAnalysis.skills.slice(0, 3);
+        return `That's impressive! Given your background with ${techStack.join(', ')}, how do you typically decide which technology to use when starting a new project? Can you give me an example of a technical decision you made and why?`;
+      }
+      
+      if (resumeAnalysis.experience.length > 0 && resumeAnalysis.experience[0].includes('years')) {
+        return `I notice you have ${resumeAnalysis.experience[0]} in the field. How has your approach to ${role.toLowerCase()} evolved over time? What's one thing you do differently now compared to when you started?`;
+      }
+    }
+    
+    // Experience and leadership questions
     if (messageCount <= 6) {
-      return `Based on your background, how do you stay current with industry trends and continue learning? Can you give me an example of a recent skill you've developed that's mentioned in your resume?`;
+      if (resumeAnalysis.experience.some(exp => 
+        exp.toLowerCase().includes('senior') || 
+        exp.toLowerCase().includes('lead') || 
+        exp.toLowerCase().includes('manager')
+      )) {
+        return `I see you have leadership experience. Can you describe a time when you had to mentor a junior team member or guide a team through a difficult technical challenge? What was your approach?`;
+      }
+      
+      if (resumeAnalysis.projects.length > 0) {
+        return `Based on your project experience, how do you typically approach the planning phase of a new project? What factors do you consider when estimating timelines and identifying potential risks?`;
+      }
+      
+      if (resumeAnalysis.education.length > 0) {
+        return `I notice your educational background includes ${resumeAnalysis.education[0]}. How do you apply theoretical concepts from your education to practical, real-world problems in your work?`;
+      }
+    }
+    
+    // Advanced scenario questions
+    if (messageCount <= 8) {
+      if (resumeAnalysis.skills.includes('AWS') || resumeAnalysis.skills.includes('Azure') || resumeAnalysis.skills.includes('GCP')) {
+        return `Given your cloud experience, how would you design a scalable architecture for a high-traffic application? What considerations would you make for cost optimization and security?`;
+      }
+      
+      if (resumeAnalysis.skills.some(skill => 
+        ['React', 'Vue.js', 'Angular', 'JavaScript', 'TypeScript'].includes(skill)
+      )) {
+        return `With your frontend expertise, how do you approach performance optimization in web applications? Can you share a specific example where you improved application performance?`;
+      }
     }
   }
   
