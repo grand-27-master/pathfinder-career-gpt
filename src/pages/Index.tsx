@@ -6,8 +6,10 @@ import { useAuth } from '@/hooks/useAuth';
 import ThemeToggle from '@/components/ThemeToggle';
 const Index = () => {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
-  
+  const {
+    user,
+    signOut
+  } = useAuth();
   const handleStartInterview = () => {
     if (!user) {
       navigate('/auth');
@@ -15,7 +17,6 @@ const Index = () => {
       navigate('/interview');
     }
   };
-
   const handleSignOut = async () => {
     await signOut();
   };
@@ -125,7 +126,7 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="py-8 bg-muted text-center">
-        <p className="text-muted-foreground">© 2025 CareerGPT.</p>
+        <p className="text-muted-foreground">© 2025 CareerGPT</p>
       </footer>
     </div>;
 };
