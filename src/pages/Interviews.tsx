@@ -61,6 +61,7 @@ const Interviews = () => {
   
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     // Initialize Speech APIs
@@ -97,12 +98,30 @@ const Interviews = () => {
       };
     }
 
+    // Setup camera if enabled
+    if (cameraEnabled && videoRef.current) {
+      navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user'
+        },
+        audio: false
+      }).then(stream => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }).catch(err => {
+        console.error('Error accessing camera:', err);
+      });
+    }
+
     return () => {
       if (synthRef.current) {
         synthRef.current.cancel();
       }
     };
-  }, []);
+  }, [cameraEnabled]);
 
   const addMessage = (type: 'user' | 'ai', content: string) => {
     const newMessage: Message = {
@@ -411,39 +430,69 @@ const Interviews = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6">
-        <div className="max-w-4xl mx-auto">
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <div className="space-y-4 max-h-96 overflow-y-auto">
-                {messages.length === 0 ? (
-                  <div className="text-center text-gray-600 py-8">
-                    <p>Interview is starting... The AI interviewer will speak to you shortly.</p>
+        <div className="container mx-auto px-4 py-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Chat Messages */}
+            <div className="lg:col-span-2">
+              <Card className="mb-6">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {messages.length === 0 ? (
+                      <div className="text-center text-muted-foreground py-8">
+                        <p>Interview is starting... The AI interviewer will speak to you shortly.</p>
+                      </div>
+                    ) : (
+                      messages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div
+                            className={`max-w-xs sm:max-w-md lg:max-w-lg px-4 py-2 rounded-lg ${
+                              message.type === 'user'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted text-muted-foreground'
+                            }`}
+                          >
+                            <p className="text-sm">{message.content}</p>
+                            <p className="text-xs opacity-70 mt-1">
+                              {message.timestamp.toLocaleTimeString()}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
-                ) : (
-                  messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                          message.type === 'user'
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-gray-200 text-gray-900'
-                        }`}
-                      >
-                        <p className="text-sm">{message.content}</p>
-                        <p className="text-xs opacity-70 mt-1">
-                          {message.timestamp.toLocaleTimeString()}
-                        </p>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Video Preview */}
+            {cameraEnabled && (
+              <div className="lg:col-span-1">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">Video Preview</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="relative">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        muted
+                        playsInline
+                        className="w-full h-40 sm:h-48 rounded-lg bg-muted object-cover"
+                      />
+                      <div className="absolute top-2 right-2 bg-destructive text-destructive-foreground px-2 py-1 rounded text-xs font-medium">
+                        LIVE
                       </div>
                     </div>
-                  ))
-                )}
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </div>
 
           <div className="text-center">
             <div className="flex justify-center items-center space-x-4">

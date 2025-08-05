@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Interviews from "./pages/Interviews";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
+import Payments from "./pages/Payments";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
               <Route path="/interview" element={<Interviews />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/payments" element={<Payments />} />
               <Route path="*" element={<Index />} />
             </Routes>
           </BrowserRouter>
