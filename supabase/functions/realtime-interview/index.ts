@@ -23,30 +23,45 @@ interface RequestBody {
 async function extractResumeContent(resumeUrl: string): Promise<string> {
   try {
     const response = await fetch(resumeUrl);
-    if (!response.ok) return '';
-    
-    const contentType = response.headers.get('content-type') || '';
-    
-    if (contentType.includes('text/plain')) {
-      return await response.text();
+    if (!response.ok) {
+      console.error(`Failed to fetch resume: ${response.status} ${response.statusText}`);
+      return '';
     }
     
-    // For other file types, return a placeholder
-    // In a real implementation, you'd use a PDF/DOC parser
-    return `Resume content from ${resumeUrl} (file parsing not implemented - user should provide text version)`;
+    const contentType = response.headers.get('content-type') || '';
+    console.log(`Resume content type: ${contentType}`);
+    
+    if (contentType.includes('text/plain') || contentType.includes('text/')) {
+      const content = await response.text();
+      console.log(`Extracted text content length: ${content.length}`);
+      return content;
+    }
+    
+    if (contentType.includes('application/pdf')) {
+      // For PDFs, we'll need the user to upload as text for now
+      console.log('PDF detected - user should upload text version');
+      return '';
+    }
+    
+    // Try to extract as text anyway
+    const content = await response.text();
+    console.log(`Fallback text extraction length: ${content.length}`);
+    return content;
   } catch (error) {
     console.error('Error extracting resume content:', error);
     return '';
   }
 }
 
-// Enhanced resume analysis
+// Enhanced resume analysis with better parsing
 function analyzeResume(content: string): {
   skills: string[];
   experience: string[];
   education: string[];
   projects: string[];
   companies: string[];
+  jobTitles: string[];
+  achievements: string[];
 } {
   const lowerContent = content.toLowerCase();
   
@@ -58,19 +73,20 @@ function analyzeResume(content: string): {
     'Communication', 'Problem Solving', 'Team Collaboration', 'HTML', 'CSS',
     'C++', 'C#', '.NET', 'Spring', 'Django', 'Flask', 'Express', 'Laravel',
     'Figma', 'Adobe', 'Photoshop', 'Illustrator', 'Sketch', 'InVision',
-    'Firebase', 'Azure', 'GCP', 'Jenkins', 'CI/CD', 'DevOps', 'Linux'
+    'Firebase', 'Azure', 'GCP', 'Jenkins', 'CI/CD', 'DevOps', 'Linux',
+    'TensorFlow', 'PyTorch', 'Pandas', 'NumPy', 'Scikit-learn', 'Tableau',
+    'Power BI', 'Salesforce', 'Jira', 'Confluence', 'Slack', 'Teams'
   ];
   
   const skills = commonSkills.filter(skill => 
     lowerContent.includes(skill.toLowerCase())
   );
 
-  // Extract experience indicators
+  // Extract years of experience
   const experiencePatterns = [
     /(\d+)\+?\s*years?\s+(?:of\s+)?experience/gi,
     /(\d+)\+?\s*years?\s+(?:working\s+)?(?:with|in|as)/gi,
-    /senior|lead|principal|manager|director|head of/gi,
-    /developed|built|created|implemented|designed|architected/gi
+    /(\d+)\+?\s*year\s+(?:of\s+)?experience/gi
   ];
   
   const experience = [];
@@ -79,11 +95,25 @@ function analyzeResume(content: string): {
     if (matches) experience.push(...matches.slice(0, 3));
   });
 
+  // Extract job titles and seniority
+  const jobTitlePatterns = [
+    /(?:senior|lead|principal|staff|manager|director|head of|chief)\s+\w+/gi,
+    /(?:software|frontend|backend|full stack|data|machine learning|devops|cloud)\s+(?:engineer|developer|scientist|analyst)/gi,
+    /(?:product|project)\s+manager/gi,
+    /(?:ui|ux)\s+designer/gi
+  ];
+  
+  const jobTitles = [];
+  jobTitlePatterns.forEach(pattern => {
+    const matches = content.match(pattern);
+    if (matches) jobTitles.push(...matches.slice(0, 3));
+  });
+
   // Extract education
   const educationPatterns = [
-    /bachelor|master|phd|doctorate|degree/gi,
-    /university|college|institute/gi,
-    /computer science|engineering|mathematics|physics|business/gi
+    /(?:bachelor|master|phd|doctorate|b\.?s\.?|m\.?s\.?|ph\.?d\.?)\s+(?:in|of)?\s*([a-z\s]+)/gi,
+    /(?:university|college|institute)\s+of\s+([a-z\s]+)/gi,
+    /computer science|software engineering|electrical engineering|mathematics|physics|business/gi
   ];
   
   const education = [];
@@ -92,38 +122,57 @@ function analyzeResume(content: string): {
     if (matches) education.push(...matches.slice(0, 3));
   });
 
-  // Extract project keywords
+  // Extract specific project details
   const projectPatterns = [
-    /project|application|system|platform|website|app/gi,
-    /startup|company|team|collaboration/gi
+    /(?:built|developed|created|designed|implemented|architected)\s+(?:a|an)?\s*([a-z\s]+(?:application|system|platform|website|app|service|api))/gi,
+    /(?:led|managed|coordinated)\s+(?:a|the)?\s*([a-z\s]+(?:project|initiative|team|development))/gi
   ];
   
   const projects = [];
   projectPatterns.forEach(pattern => {
-    const matches = content.match(pattern);
-    if (matches) projects.push(...matches.slice(0, 3));
+    const matches = [...content.matchAll(pattern)];
+    matches.forEach(match => {
+      if (match[1] && match[1].length > 3) projects.push(match[1].trim());
+    });
   });
 
-  // Extract company/work context
+  // Extract company names more accurately
   const companyPatterns = [
-    /(?:at|@)\s+([A-Z][a-zA-Z\s&]+(?:Inc|LLC|Corp|Ltd|Co\.?)?)/g,
-    /(?:worked|employed|joined)\s+(?:at|with)\s+([A-Z][a-zA-Z\s&]+)/g
+    /(?:at|@)\s+([A-Z][a-zA-Z0-9\s&\.]+(?:Inc|LLC|Corp|Ltd|Co\.?|Technologies|Systems|Solutions|Group)?)/g,
+    /(?:worked|employed|joined)\s+(?:at|with)\s+([A-Z][a-zA-Z0-9\s&\.]+)/g
   ];
   
   const companies = [];
   companyPatterns.forEach(pattern => {
     const matches = [...content.matchAll(pattern)];
     matches.forEach(match => {
-      if (match[1] && match[1].length > 2) companies.push(match[1].trim());
+      if (match[1] && match[1].length > 2 && match[1].length < 50) {
+        companies.push(match[1].trim());
+      }
     });
+  });
+
+  // Extract achievements and metrics
+  const achievementPatterns = [
+    /(?:increased|improved|reduced|optimized|enhanced)\s+([^.]+)/gi,
+    /(?:\d+%|\$\d+|x\d+|\d+\s*(?:users|customers|revenue|performance|efficiency))/gi,
+    /(?:award|recognition|certification|promoted|achieved)/gi
+  ];
+  
+  const achievements = [];
+  achievementPatterns.forEach(pattern => {
+    const matches = content.match(pattern);
+    if (matches) achievements.push(...matches.slice(0, 3));
   });
 
   return {
     skills: [...new Set(skills)],
     experience: [...new Set(experience)].slice(0, 5),
     education: [...new Set(education)].slice(0, 3),
-    projects: [...new Set(projects)].slice(0, 3),
-    companies: [...new Set(companies)].slice(0, 3)
+    projects: [...new Set(projects)].slice(0, 5),
+    companies: [...new Set(companies)].slice(0, 3),
+    jobTitles: [...new Set(jobTitles)].slice(0, 3),
+    achievements: [...new Set(achievements)].slice(0, 3)
   };
 }
 
@@ -141,60 +190,102 @@ function generateFallbackResponse(
   // If we have resume content, use it to generate deeply personalized questions
   if (resumeContent && resumeContent.length > 50) {
     const resumeAnalysis = analyzeResume(resumeContent);
+    console.log('Resume analysis results:', resumeAnalysis);
     
-    // Opening questions based on resume analysis
-    if (messageCount <= 2) {
-      if (resumeAnalysis.skills.length > 0) {
-        const topSkills = resumeAnalysis.skills.slice(0, 2);
-        return `Thank you for that introduction! I've reviewed your resume and noticed your experience with ${topSkills.join(' and ')}. Can you walk me through a specific project where you used ${topSkills[0]} and describe the most challenging aspect you encountered?`;
+    // Interview type-specific resume-based questions
+    if (interviewType === 'technical') {
+      // Technical questions based on resume
+      if (messageCount <= 2 && resumeAnalysis.skills.length > 0) {
+        const primarySkill = resumeAnalysis.skills[0];
+        const questions = {
+          'JavaScript': `I see you have JavaScript experience. Can you explain the difference between let, const, and var? When would you use each one?`,
+          'React': `I notice you work with React. How would you optimize a React component that's re-rendering too frequently?`,
+          'Python': `You have Python on your resume. Can you explain the difference between a list and a tuple, and when you'd use each?`,
+          'AWS': `I see AWS experience. How would you design a fault-tolerant system using AWS services?`,
+          'SQL': `You mention SQL experience. How would you optimize a slow database query?`,
+          'Node.js': `I see Node.js experience. How do you handle error management in asynchronous Node.js code?`
+        };
+        return questions[primarySkill] || `I see you have ${primarySkill} experience. Can you walk me through how you would architect a scalable system using this technology?`;
       }
       
-      if (resumeAnalysis.companies.length > 0) {
-        return `Great to meet you! I see from your resume that you've worked at ${resumeAnalysis.companies[0]}. Can you tell me about a significant project or achievement from your time there that you're particularly proud of?`;
+      if (messageCount <= 4 && resumeAnalysis.projects.length > 0) {
+        return `I noticed you worked on ${resumeAnalysis.projects[0]}. What was the most technically challenging part of this project, and how did you solve it?`;
       }
-    }
-    
-    // Technical depth questions
-    if (messageCount <= 4) {
-      if (resumeAnalysis.skills.length > 2) {
+      
+      if (messageCount <= 6 && resumeAnalysis.skills.length > 2) {
         const techStack = resumeAnalysis.skills.slice(0, 3);
-        return `That's impressive! Given your background with ${techStack.join(', ')}, how do you typically decide which technology to use when starting a new project? Can you give me an example of a technical decision you made and why?`;
-      }
-      
-      if (resumeAnalysis.experience.length > 0 && resumeAnalysis.experience[0].includes('years')) {
-        return `I notice you have ${resumeAnalysis.experience[0]} in the field. How has your approach to ${role.toLowerCase()} evolved over time? What's one thing you do differently now compared to when you started?`;
+        return `Given your experience with ${techStack.join(', ')}, how would you approach integrating these technologies in a microservices architecture?`;
       }
     }
     
-    // Experience and leadership questions
-    if (messageCount <= 6) {
-      if (resumeAnalysis.experience.some(exp => 
-        exp.toLowerCase().includes('senior') || 
-        exp.toLowerCase().includes('lead') || 
-        exp.toLowerCase().includes('manager')
-      )) {
-        return `I see you have leadership experience. Can you describe a time when you had to mentor a junior team member or guide a team through a difficult technical challenge? What was your approach?`;
+    if (interviewType === 'behavioral') {
+      // Behavioral questions based on resume
+      if (messageCount <= 2 && resumeAnalysis.jobTitles.length > 0) {
+        const title = resumeAnalysis.jobTitles[0];
+        return `I see you've worked as a ${title}. Can you tell me about a time when you had to handle a difficult situation with a team member or stakeholder?`;
       }
       
-      if (resumeAnalysis.projects.length > 0) {
-        return `Based on your project experience, how do you typically approach the planning phase of a new project? What factors do you consider when estimating timelines and identifying potential risks?`;
+      if (messageCount <= 4 && resumeAnalysis.achievements.length > 0) {
+        return `I noticed your achievement: "${resumeAnalysis.achievements[0]}". Can you walk me through the steps you took to accomplish this and what challenges you faced?`;
       }
       
-      if (resumeAnalysis.education.length > 0) {
-        return `I notice your educational background includes ${resumeAnalysis.education[0]}. How do you apply theoretical concepts from your education to practical, real-world problems in your work?`;
+      if (messageCount <= 6 && resumeAnalysis.companies.length > 0) {
+        return `During your time at ${resumeAnalysis.companies[0]}, can you describe a situation where you had to adapt to a significant change or challenge?`;
       }
     }
     
-    // Advanced scenario questions
-    if (messageCount <= 8) {
-      if (resumeAnalysis.skills.includes('AWS') || resumeAnalysis.skills.includes('Azure') || resumeAnalysis.skills.includes('GCP')) {
-        return `Given your cloud experience, how would you design a scalable architecture for a high-traffic application? What considerations would you make for cost optimization and security?`;
+    if (interviewType === 'system-design') {
+      // System design questions based on resume
+      if (messageCount <= 2 && resumeAnalysis.skills.length > 0) {
+        const hasBackend = resumeAnalysis.skills.some(s => ['Node.js', 'Python', 'Java', 'SQL'].includes(s));
+        const hasFrontend = resumeAnalysis.skills.some(s => ['React', 'Vue.js', 'Angular', 'JavaScript'].includes(s));
+        
+        if (hasBackend && hasFrontend) {
+          return `Given your full-stack experience, how would you design a real-time chat application that needs to support 100,000 concurrent users?`;
+        } else if (hasBackend) {
+          return `With your backend experience, how would you design an API that can handle 10,000 requests per second?`;
+        } else if (hasFrontend) {
+          return `Given your frontend expertise, how would you design a dashboard that displays real-time data from multiple sources?`;
+        }
       }
       
-      if (resumeAnalysis.skills.some(skill => 
-        ['React', 'Vue.js', 'Angular', 'JavaScript', 'TypeScript'].includes(skill)
-      )) {
-        return `With your frontend expertise, how do you approach performance optimization in web applications? Can you share a specific example where you improved application performance?`;
+      if (messageCount <= 4 && resumeAnalysis.skills.includes('AWS')) {
+        return `I see you have AWS experience. How would you design a serverless architecture for a file processing system?`;
+      }
+    }
+    
+    if (interviewType === 'screening') {
+      // Screening questions based on resume
+      if (messageCount <= 2 && resumeAnalysis.experience.length > 0) {
+        const expMatch = resumeAnalysis.experience[0].match(/(\d+)\+?\s*years?/);
+        const years = expMatch ? expMatch[1] : 'several';
+        return `I see you have ${years} years of experience. What initially drew you to this field, and what keeps you motivated?`;
+      }
+      
+      if (messageCount <= 4 && resumeAnalysis.companies.length > 1) {
+        return `You've worked at ${resumeAnalysis.companies.slice(0, 2).join(' and ')}. What motivated you to make these career transitions?`;
+      }
+    }
+    
+    // General resume-based questions for any interview type
+    if (messageCount <= 3 && resumeAnalysis.skills.length > 0) {
+      const topSkills = resumeAnalysis.skills.slice(0, 2);
+      return `I've reviewed your resume and noticed your experience with ${topSkills.join(' and ')}. Can you walk me through a specific project where you used these technologies and describe the impact you made?`;
+    }
+    
+    if (messageCount <= 5 && resumeAnalysis.companies.length > 0) {
+      return `I see from your resume that you've worked at ${resumeAnalysis.companies[0]}. Can you tell me about a significant project or achievement from your time there that you're particularly proud of?`;
+    }
+    
+    if (messageCount <= 7 && resumeAnalysis.jobTitles.length > 0) {
+      const isLeadership = resumeAnalysis.jobTitles.some(title => 
+        title.toLowerCase().includes('senior') || 
+        title.toLowerCase().includes('lead') || 
+        title.toLowerCase().includes('manager')
+      );
+      
+      if (isLeadership) {
+        return `I see you have leadership experience as a ${resumeAnalysis.jobTitles[0]}. Can you describe a time when you had to mentor someone or guide a team through a difficult technical challenge?`;
       }
     }
   }
