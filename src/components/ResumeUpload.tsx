@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Upload, FileText, Trash2, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useDropzone } from "react-dropzone";
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 
 interface ResumeUploadProps {
   onResumeUploaded?: (resumeUrl: string) => void;
@@ -17,6 +18,28 @@ const ResumeUpload = ({ onResumeUploaded, currentResume }: ResumeUploadProps) =>
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [resumeUrl, setResumeUrl] = useState<string | null>(currentResume || null);
+
+  // Extract text from PDF in-browser for accurate parsing
+  const extractPdfText = useCallback(async (file: File): Promise<string> => {
+    try {
+      GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.worker.min.js";
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await (getDocument({ data: arrayBuffer }) as any).promise;
+      let text = "";
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const content = await page.getTextContent();
+        const strings = (content.items as any[]).map((item: any) =>
+          typeof item?.str === "string" ? item.str : ""
+        );
+        text += strings.join(" ") + "\n";
+      }
+      return text;
+    } catch (err) {
+      console.error("PDF text extraction failed", err);
+      return "";
+    }
+  }, []);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!user) return;
@@ -80,10 +103,16 @@ const ResumeUpload = ({ onResumeUploaded, currentResume }: ResumeUploadProps) =>
       setResumeUrl(publicUrl);
       onResumeUploaded?.(publicUrl);
 
-      // Invoke resume parsing to inform the user
+      // Invoke resume parsing to inform the user (sending raw text when available)
       try {
+        let rawContent = '';
+        if (file.type === 'application/pdf') {
+          rawContent = await extractPdfText(file);
+        } else if (file.type.startsWith('text/')) {
+          rawContent = await file.text();
+        }
         const { data: parsed, error: parseError } = await supabase.functions.invoke('parse-resume', {
-          body: { resumeUrl: publicUrl }
+          body: { resumeUrl: publicUrl, rawContent }
         });
         if (parseError) throw parseError;
         const summary = parsed?.summary || 'Your resume was parsed successfully.';

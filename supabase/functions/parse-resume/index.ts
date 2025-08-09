@@ -7,7 +7,8 @@ const corsHeaders = {
 };
 
 interface ParseBody {
-  resumeUrl: string;
+  resumeUrl?: string;
+  rawContent?: string;
 }
 
 async function extractResumeContent(resumeUrl: string): Promise<string> {
@@ -22,7 +23,8 @@ async function extractResumeContent(resumeUrl: string): Promise<string> {
       return await response.text();
     }
     if (contentType.includes('application/pdf')) {
-      console.log('PDF detected - cannot parse reliably without OCR.');
+      // PDF detected - leave parsing to client-side when possible
+      console.log('PDF detected - expecting rawContent from client for accurate parsing.');
       return '';
     }
     return await response.text();
@@ -42,10 +44,57 @@ function analyzeResume(content: string): {
   achievements: string[];
 } {
   const lowerContent = content.toLowerCase();
-  const commonSkills = [
-    'JavaScript','Python','Java','React','Node.js','SQL','AWS','Docker','Kubernetes','Git','Agile','Scrum','TypeScript','Vue.js','Angular','MongoDB','PostgreSQL','Redis','GraphQL','REST API','Microservices','Machine Learning','Data Analysis','Project Management','Leadership','Communication','Problem Solving','Team Collaboration','HTML','CSS','C++','C#','.NET','Spring','Django','Flask','Express','Laravel','Figma','Adobe','Photoshop','Illustrator','Sketch','InVision','Firebase','Azure','GCP','Jenkins','CI/CD','DevOps','Linux','TensorFlow','PyTorch','Pandas','NumPy','Scikit-learn','Tableau','Power BI','Salesforce','Jira','Confluence','Slack','Teams'
-  ];
-  const skills = commonSkills.filter(s => lowerContent.includes(s.toLowerCase()));
+  // Normalize content for robust matching
+  const normalized = content
+    .replace(/[\u2010-\u2015]/g, '-') // dashes
+    .replace(/[·•]/g, ' ')
+    .replace(/\s+/g, ' ');
+
+  // Robust skill detection using regex patterns with common variations
+  const skillPatterns: Record<string, RegExp> = {
+    'JavaScript': /\b(java\s*script|javascript|js(?!on))\b/i,
+    'TypeScript': /\b(type\s*script|typescript|ts(?!ql))\b/i,
+    'Python': /\bpython\b/i,
+    'Java': /\bjava\b/i,
+    'React': /\breact(\.js)?\b/i,
+    'Node.js': /\bnode(\.js)?|nodejs\b/i,
+    'SQL': /\bsql\b/i,
+    'PostgreSQL': /\b(postgres|postgresql)\b/i,
+    'MongoDB': /\bmongo\s*db|mongodb\b/i,
+    'GraphQL': /\bgraphql\b/i,
+    'REST API': /\brest(ful)?\s*api\b/i,
+    'AWS': /\baws|amazon\s+web\s+services\b/i,
+    'Azure': /\bazure\b/i,
+    'GCP': /\b(gcp|google\s+cloud)\b/i,
+    'Docker': /\bdocker\b/i,
+    'Kubernetes': /\bk8s|kubernetes\b/i,
+    'Git': /\bgit\b/i,
+    'Linux': /\blinux\b/i,
+    'CI/CD': /\bci\s*\/\s*cd|continuous\s+integration|continuous\s+delivery\b/i,
+    'Jenkins': /\bjenkins\b/i,
+    'TensorFlow': /\btensor\s*flow|tensorflow\b/i,
+    'PyTorch': /\bpytorch\b/i,
+    'Pandas': /\bpandas\b/i,
+    'NumPy': /\bnumpy\b/i,
+    'Scikit-learn': /\bscikit\s*-?learn|sklearn\b/i,
+    'HTML': /\bhtml\b/i,
+    'CSS': /\bcss\b/i,
+    'C++': /\bc\+\+\b/i,
+    'C#': /\bc#|csharp\b/i,
+    '.NET': /\b\.net|dotnet\b/i,
+    'Django': /\bdjango\b/i,
+    'Flask': /\bflask\b/i,
+    'Express': /\bexpress(\.js)?\b/i,
+    'Spring': /\bspring\b/i,
+    'Firebase': /\bfirebase\b/i,
+    'Redis': /\bredis\b/i,
+    'Jira': /\bjira\b/i,
+    'Tableau': /\btableau\b/i,
+  };
+
+  const skills = Object.entries(skillPatterns)
+    .filter(([_, rx]) => rx.test(normalized))
+    .map(([name]) => name);
 
   const experiencePatterns = [
     /(\d+)\+?\s*years?\s+(?:of\s+)?experience/gi,
@@ -129,17 +178,19 @@ serve(async (req) => {
   }
 
   try {
-    const { resumeUrl }: ParseBody = await req.json();
-    console.log('parse-resume called with', { resumeUrl });
+    const { resumeUrl, rawContent }: ParseBody = await req.json();
+    console.log('parse-resume called with', { resumeUrl, hasRawContent: !!rawContent });
 
-    if (!resumeUrl) {
-      return new Response(JSON.stringify({ success: false, error: 'Missing resumeUrl' }), {
+    if (!resumeUrl && !rawContent) {
+      return new Response(JSON.stringify({ success: false, error: 'Missing resumeUrl or rawContent' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const content = await extractResumeContent(resumeUrl);
+    const content = (rawContent && rawContent.trim().length > 0)
+      ? rawContent
+      : (resumeUrl ? await extractResumeContent(resumeUrl) : '');
     const analysis = content ? analyzeResume(content) : {
       skills: [], experience: [], education: [], projects: [], companies: [], jobTitles: [], achievements: []
     };
