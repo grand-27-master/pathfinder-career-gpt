@@ -29,7 +29,7 @@ const Index = () => {
               <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
                 <MessagesSquare className="h-6 w-6 text-primary-foreground" />
               </div>
-              <h1 className="text-2xl font-bold text-foreground">CareerGPT</h1>
+              <h1 className="text-2xl font-bold text-foreground">interviewGPT</h1>
             </div>
             <div className="flex items-center space-x-2">
               <ThemeToggle />
@@ -78,7 +78,7 @@ const Index = () => {
       <section className="py-12 sm:py-20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12 sm:mb-16">
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">Why Practice with CareerGPT?</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">Why Practice with interviewGPT?</h2>
             <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
               Our AI interview coach provides realistic practice sessions tailored to your resume and needs.
             </p>
@@ -126,7 +126,7 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="py-8 bg-muted text-center">
-        <p className="text-muted-foreground">© 2025 CareerGPT</p>
+        <p className="text-muted-foreground">© 2025 interviewGPT</p>
       </footer>
     </div>;
 };

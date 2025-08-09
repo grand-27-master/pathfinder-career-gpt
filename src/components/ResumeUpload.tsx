@@ -80,10 +80,26 @@ const ResumeUpload = ({ onResumeUploaded, currentResume }: ResumeUploadProps) =>
       setResumeUrl(publicUrl);
       onResumeUploaded?.(publicUrl);
 
-      toast({
-        title: "Resume uploaded successfully",
-        description: "Your resume has been uploaded and will be used for interview questions",
-      });
+      // Invoke resume parsing to inform the user
+      try {
+        const { data: parsed, error: parseError } = await supabase.functions.invoke('parse-resume', {
+          body: { resumeUrl: publicUrl }
+        });
+        if (parseError) throw parseError;
+        const summary = parsed?.summary || 'Your resume was parsed successfully.';
+        const skillsCount = parsed?.analysis?.skills?.length ?? 0;
+        const companiesCount = parsed?.analysis?.companies?.length ?? 0;
+        toast({
+          title: 'Resume parsed',
+          description: `${summary} Found ${skillsCount} skills and ${companiesCount} companies.`,
+        });
+      } catch (e: any) {
+        console.warn('Resume parse function failed:', e?.message || e);
+        toast({
+          title: 'Resume uploaded successfully',
+          description: 'We will tailor questions to your resume.',
+        });
+      }
     } catch (error: any) {
       console.error('Error uploading resume:', error);
       toast({

@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import RoleSelector from '@/components/Interview/RoleSelector';
 import ResumeUpload from '@/components/ResumeUpload';
-import CameraToggle from '@/components/CameraToggle';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -57,12 +57,9 @@ const Interviews = () => {
   const [interviewStarted, setInterviewStarted] = useState(false);
   const [interviewStartTime, setInterviewStartTime] = useState<Date | null>(null);
   const [resumeUrl, setResumeUrl] = useState<string>('');
-  const [cameraEnabled, setCameraEnabled] = useState(false);
   
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
   useEffect(() => {
     // Initialize Speech APIs
     if ('speechSynthesis' in window) {
@@ -98,30 +95,12 @@ const Interviews = () => {
       };
     }
 
-    // Setup camera if enabled
-    if (cameraEnabled && videoRef.current) {
-      navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user'
-        },
-        audio: false
-      }).then(stream => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      }).catch(err => {
-        console.error('Error accessing camera:', err);
-      });
-    }
-
     return () => {
       if (synthRef.current) {
         synthRef.current.cancel();
       }
     };
-  }, [cameraEnabled]);
+  }, []);
 
   const addMessage = (type: 'user' | 'ai', content: string) => {
     const newMessage: Message = {
@@ -222,6 +201,15 @@ const Interviews = () => {
       return;
     }
 
+    if (!resumeUrl) {
+      toast({
+        title: "Resume required",
+        description: "Upload your resume first. Questions will be based strictly on it.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setInterviewStarted(true);
     setInterviewStartTime(new Date());
     
@@ -234,8 +222,7 @@ const Interviews = () => {
       'cultural-fit': 'cultural fit'
     };
     
-    const greeting = `Hello! I'm your AI interviewer today. I'll be conducting a ${interviewTypeLabels[selectedInterviewType]} interview for the ${selectedRole} position. ${cameraEnabled ? 'I can see you look ready! ' : ''}Let's begin with an introduction - please tell me about yourself and why you're interested in this role.`;
-    
+    const greeting = `Hello! I'm your AI interviewer today. I'll be conducting a ${interviewTypeLabels[selectedInterviewType]} interview for the ${selectedRole} position. Let's begin with an introduction — please tell me about yourself and why you're interested in this role.`;
     addMessage('ai', greeting);
     await speakText(greeting);
   };
@@ -281,7 +268,7 @@ const Interviews = () => {
           transcript,
           duration_seconds: duration,
           resume_url: resumeUrl || null,
-          resume_analysis: `Interview Type: ${selectedInterviewType}${cameraEnabled ? ' (Video)' : ' (Audio Only)'}`
+          resume_analysis: `Interview Type: ${selectedInterviewType}`
         });
 
       if (error) throw error;
@@ -375,7 +362,7 @@ const Interviews = () => {
                         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3"
                         disabled={isProcessing}
                       >
-                        Begin {cameraEnabled ? 'Video' : 'Audio'} Interview
+                        Begin Interview
                       </Button>
                     </div>
                   )}
@@ -387,8 +374,6 @@ const Interviews = () => {
                   onResumeUploaded={setResumeUrl}
                   currentResume={resumeUrl}
                 />
-                
-                <CameraToggle onCameraToggle={setCameraEnabled} />
               </div>
             </div>
           </div>
@@ -415,7 +400,7 @@ const Interviews = () => {
                   {selectedRole} - {selectedInterviewType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())} Interview
                 </h1>
                 <p className="text-sm text-gray-600">
-                  {isSpeaking ? 'AI is speaking...' : isProcessing ? 'Processing...' : 'Ready for your response'} {cameraEnabled ? '• Video Active' : '• Audio Only'}
+                  {isSpeaking ? 'AI is speaking...' : isProcessing ? 'Processing...' : 'Ready for your response'} • Audio
                 </p>
               </div>
             </div>
@@ -468,30 +453,6 @@ const Interviews = () => {
               </Card>
             </div>
             
-            {/* Video Preview */}
-            {cameraEnabled && (
-              <div className="lg:col-span-1">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm">Video Preview</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4">
-                    <div className="relative">
-                      <video
-                        ref={videoRef}
-                        autoPlay
-                        muted
-                        playsInline
-                        className="w-full h-40 sm:h-48 rounded-lg bg-muted object-cover"
-                      />
-                      <div className="absolute top-2 right-2 bg-destructive text-destructive-foreground px-2 py-1 rounded text-xs font-medium">
-                        LIVE
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
           </div>
 
           <div className="text-center">
