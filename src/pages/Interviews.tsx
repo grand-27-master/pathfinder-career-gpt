@@ -197,7 +197,7 @@ const Interviews = () => {
     if (!selectedRole || !selectedInterviewType) {
       toast({
         title: "Please complete setup",
-        description: "Choose both the role and interview type before starting",
+        description: "Upload your resume for role detection and choose an interview type",
         variant: "destructive",
       });
       return;
@@ -335,7 +335,6 @@ const Interviews = () => {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <RoleSelector 
-                    onRoleSelect={setSelectedRole} 
                     onInterviewTypeSelect={setSelectedInterviewType}
                   />
                   
@@ -343,7 +342,7 @@ const Interviews = () => {
                     <div className="text-center space-y-4">
                       <div className="space-y-2">
                         <p className="text-gray-600 text-sm sm:text-base">
-                          Selected Role: <span className="font-semibold text-indigo-600">{selectedRole}</span>
+                          Detected Role: <span className="font-semibold text-indigo-600">{selectedRole}</span>
                         </p>
                         <p className="text-gray-600 text-sm sm:text-base">
                           Interview Type: <span className="font-semibold text-green-600">{selectedInterviewType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
@@ -363,7 +362,7 @@ const Interviews = () => {
 
               <div className="space-y-6">
                 <ResumeUpload 
-                  onResumeUploaded={(url, extra) => { setResumeUrl(url); setResumeRaw(extra?.rawContent || ''); }}
+                  onResumeUploaded={(url, extra) => { setResumeUrl(url); setResumeRaw(extra?.rawContent || ''); if (extra?.detectedRole) setSelectedRole(extra.detectedRole); }}
                   currentResume={resumeUrl}
                 />
               </div>

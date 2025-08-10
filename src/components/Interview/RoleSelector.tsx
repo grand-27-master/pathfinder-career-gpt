@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
+
 import {
   Select,
   SelectContent,
@@ -10,24 +10,10 @@ import {
 } from "@/components/ui/select";
 
 interface RoleSelectorProps {
-  onRoleSelect: (role: string) => void;
   onInterviewTypeSelect: (type: string) => void;
 }
 
-const RoleSelector = ({ onRoleSelect, onInterviewTypeSelect }: RoleSelectorProps) => {
-  const roles = [
-    "Software Engineer",
-    "Product Manager",
-    "Data Scientist",
-    "UX Designer",
-    "Marketing Manager",
-    "Sales Representative",
-    "Project Manager",
-    "Business Analyst",
-    "DevOps Engineer",
-    "Full Stack Developer"
-  ];
-
+const RoleSelector = ({ onInterviewTypeSelect }: RoleSelectorProps) => {
   const interviewTypes = [
     { value: "screening", label: "Screening Interview", description: "Basic questions about background and fit" },
     { value: "technical", label: "Technical Interview", description: "In-depth technical questions and problem solving" },
@@ -38,22 +24,6 @@ const RoleSelector = ({ onRoleSelect, onInterviewTypeSelect }: RoleSelectorProps
 
   return (
     <div className="w-full space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Select Your Role</h2>
-        <Select onValueChange={onRoleSelect}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Choose a role" />
-          </SelectTrigger>
-          <SelectContent>
-            {roles.map((role) => (
-              <SelectItem key={role} value={role}>
-                {role}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
       <div>
         <h2 className="text-xl font-semibold mb-4">Interview Type</h2>
         <Select onValueChange={onInterviewTypeSelect}>

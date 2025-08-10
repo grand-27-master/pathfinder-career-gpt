@@ -191,18 +191,57 @@ serve(async (req) => {
     const content = (rawContent && rawContent.trim().length > 0)
       ? rawContent
       : (resumeUrl ? await extractResumeContent(resumeUrl) : '');
+
     const analysis = content ? analyzeResume(content) : {
       skills: [], experience: [], education: [], projects: [], companies: [], jobTitles: [], achievements: []
     };
+
+    // Infer a likely role from the parsed analysis
+    function inferRole(): { role: string; confidence: number } {
+      const s = new Set(analysis.skills || []);
+      const titles = (analysis.jobTitles || []).map(t => t.toLowerCase());
+
+      const has = (arr: string[]) => arr.some(x => s.has(x));
+
+      // Title-based direct mapping first
+      const titleMap: Array<{ rx: RegExp; role: string }> = [
+        { rx: /(product)\s+manager/i, role: 'Product Manager' },
+        { rx: /(project)\s+manager/i, role: 'Project Manager' },
+        { rx: /(data)\s+(scientist|analyst)/i, role: 'Data Scientist' },
+        { rx: /(ml|machine\s+learning)/i, role: 'Machine Learning Engineer' },
+        { rx: /(devops|site\s+reliability|sre)/i, role: 'DevOps Engineer' },
+        { rx: /(frontend|ui)\s+(engineer|developer)/i, role: 'Frontend Engineer' },
+        { rx: /(backend)\s+(engineer|developer)/i, role: 'Backend Engineer' },
+        { rx: /(full\s*stack)/i, role: 'Full Stack Developer' },
+        { rx: /(ux|ui)\s+designer/i, role: 'UX Designer' }
+      ];
+      for (const t of analysis.jobTitles || []) {
+        for (const m of titleMap) {
+          if (m.rx.test(t)) return { role: m.role, confidence: 0.95 };
+        }
+      }
+
+      // Skill-based heuristics
+      if (has(['TensorFlow','PyTorch','Pandas','NumPy','Scikit-learn'])) return { role: 'Data Scientist', confidence: 0.85 };
+      if (has(['AWS','Kubernetes','Docker','CI/CD'])) return { role: 'DevOps Engineer', confidence: 0.8 };
+      if (has(['React']) && has(['Node.js'])) return { role: 'Full Stack Developer', confidence: 0.8 };
+      if (has(['React','HTML','CSS','TypeScript','JavaScript'])) return { role: 'Frontend Engineer', confidence: 0.75 };
+      if (has(['Java','SQL','PostgreSQL','MongoDB','Express','Django','Flask'])) return { role: 'Backend Engineer', confidence: 0.75 };
+      if (has(['Tableau','Power BI','SQL'])) return { role: 'Data Analyst', confidence: 0.7 };
+
+      return { role: 'Software Engineer', confidence: 0.6 };
+    }
+
+    const inferred = inferRole();
 
     const summaryParts: string[] = [];
     if (analysis.skills.length) summaryParts.push(`${analysis.skills.length} skills`);
     if (analysis.companies.length) summaryParts.push(`${analysis.companies.length} companies`);
     if (analysis.projects.length) summaryParts.push(`${analysis.projects.length} projects`);
-    const summary = summaryParts.length ? `Parsed ${summaryParts.join(', ')} from your resume.` : 'Parsed your resume but found limited structured information.';
+    const summary = summaryParts.length ? `Parsed ${summaryParts.join(', ')} from your resume. Detected role: ${inferred.role}.` : 'Parsed your resume but found limited structured information.';
 
     return new Response(
-      JSON.stringify({ success: true, analysis, rawLength: content.length, summary }),
+      JSON.stringify({ success: true, analysis, rawLength: content.length, summary, detectedRole: inferred.role, roleConfidence: inferred.confidence }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

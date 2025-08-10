@@ -10,7 +10,7 @@ import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
 interface ResumeUploadProps {
-  onResumeUploaded?: (resumeUrl: string, extra?: { rawContent?: string }) => void;
+  onResumeUploaded?: (resumeUrl: string, extra?: { rawContent?: string; detectedRole?: string }) => void;
   currentResume?: string;
 }
 
@@ -126,17 +126,16 @@ const [uploading, setUploading] = useState(false);
         if (parseError) throw parseError;
         const summary = parsed?.summary || 'Your resume was parsed successfully.';
         const skills: string[] = parsed?.analysis?.skills ?? [];
-        const companiesCount = parsed?.analysis?.companies?.length ?? 0;
+        const detectedRole: string | undefined = parsed?.detectedRole;
         const skillsPreview = skills.slice(0, 3).join(', ');
 
         setResumeUrl(signedUrl);
-        onResumeUploaded?.(signedUrl, { rawContent });
+        onResumeUploaded?.(signedUrl, { rawContent, detectedRole });
 
+        const roleText = detectedRole ? ` Detected role: ${detectedRole}.` : '';
         toast({
-          title: skills.length > 0 ? 'Resume parsed' : 'Resume parsed (limited data)',
-          description: skills.length > 0
-            ? `${summary} Top skills: ${skillsPreview}.`
-            : `${summary} Tip: Upload a text-rich PDF or DOCX for best results.`,
+          title: 'Resume parsed',
+          description: `${summary}${roleText} ${skills.length > 0 ? `Top skills: ${skillsPreview}.` : 'Tip: Upload a text-rich PDF or DOCX for best results.'}`,
         });
       } catch (e: any) {
         console.warn('Resume parse function failed:', e?.message || e);
