@@ -17,6 +17,7 @@ interface RequestBody {
   role: string;
   interviewType: string;
   resumeUrl?: string;
+  rawContent?: string;
 }
 
 // Helper function to extract text content from resume URL
@@ -353,19 +354,22 @@ serve(async (req) => {
   }
 
   try {
-    const { message, conversationHistory = [], role, interviewType, resumeUrl }: RequestBody = await req.json();
+    const { message, conversationHistory = [], role, interviewType, resumeUrl, rawContent }: RequestBody = await req.json();
 
     console.log('Received interview request:', {
       message,
       role,
       interviewType,
       historyLength: conversationHistory.length,
-      hasResume: !!resumeUrl
+      hasResume: !!resumeUrl,
+      hasRawContent: !!rawContent
     });
     
     // Extract resume content if provided
     let resumeContent = '';
-    if (resumeUrl) {
+    if (rawContent && rawContent.trim().length > 0) {
+      resumeContent = rawContent;
+    } else if (resumeUrl) {
       resumeContent = await extractResumeContent(resumeUrl);
       console.log('Resume content extracted:', resumeContent.substring(0, 200) + '...');
     }

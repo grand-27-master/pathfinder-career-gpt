@@ -57,6 +57,7 @@ const Interviews = () => {
   const [interviewStarted, setInterviewStarted] = useState(false);
   const [interviewStartTime, setInterviewStartTime] = useState<Date | null>(null);
   const [resumeUrl, setResumeUrl] = useState<string>('');
+  const [resumeRaw, setResumeRaw] = useState<string>('');
   
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
@@ -127,7 +128,8 @@ const Interviews = () => {
           conversationHistory,
           role: selectedRole,
           interviewType: selectedInterviewType,
-          resumeUrl: resumeUrl || null
+          resumeUrl: resumeUrl || null,
+          rawContent: resumeRaw || null
         }
       });
 
@@ -213,18 +215,8 @@ const Interviews = () => {
     setInterviewStarted(true);
     setInterviewStartTime(new Date());
     
-    // Start with AI greeting tailored to interview type
-    const interviewTypeLabels = {
-      'screening': 'screening',
-      'technical': 'technical',
-      'behavioral': 'behavioral',
-      'system-design': 'system design',
-      'cultural-fit': 'cultural fit'
-    };
-    
-    const greeting = `Hello! I'm your AI interviewer today. I'll be conducting a ${interviewTypeLabels[selectedInterviewType]} interview for the ${selectedRole} position. Let's begin with an introduction — please tell me about yourself and why you're interested in this role.`;
-    addMessage('ai', greeting);
-    await speakText(greeting);
+    // Immediately ask the first tailored question based on the resume
+    await getAIResponse('');
   };
 
   const startListening = () => {
@@ -371,7 +363,7 @@ const Interviews = () => {
 
               <div className="space-y-6">
                 <ResumeUpload 
-                  onResumeUploaded={setResumeUrl}
+                  onResumeUploaded={(url, extra) => { setResumeUrl(url); setResumeRaw(extra?.rawContent || ''); }}
                   currentResume={resumeUrl}
                 />
               </div>

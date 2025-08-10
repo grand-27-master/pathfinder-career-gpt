@@ -7,17 +7,19 @@ import { Upload, FileText, Trash2, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useDropzone } from "react-dropzone";
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+import mammoth from 'mammoth';
 
 interface ResumeUploadProps {
-  onResumeUploaded?: (resumeUrl: string) => void;
+  onResumeUploaded?: (resumeUrl: string, extra?: { rawContent?: string }) => void;
   currentResume?: string;
 }
 
 const ResumeUpload = ({ onResumeUploaded, currentResume }: ResumeUploadProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [uploading, setUploading] = useState(false);
+const [uploading, setUploading] = useState(false);
   const [resumeUrl, setResumeUrl] = useState<string | null>(currentResume || null);
+  const [resumePath, setResumePath] = useState<string | null>(null);
 
   // Extract text from PDF in-browser for accurate parsing
   const extractPdfText = useCallback(async (file: File): Promise<string> => {
@@ -81,11 +83,8 @@ const ResumeUpload = ({ onResumeUploaded, currentResume }: ResumeUploadProps) =>
       const fileName = `${user.id}/resume.${fileExt}`;
       
       // Delete existing resume if it exists
-      if (resumeUrl) {
-        const existingPath = resumeUrl.split('/').pop();
-        if (existingPath) {
-          await supabase.storage.from('resumes').remove([`${user.id}/${existingPath}`]);
-        }
+      if (resumePath) {
+        await supabase.storage.from('resumes').remove([resumePath]);
       }
 
       const { data, error } = await supabase.storage
@@ -96,12 +95,13 @@ const ResumeUpload = ({ onResumeUploaded, currentResume }: ResumeUploadProps) =>
 
       if (error) throw error;
 
-      const { data: { publicUrl } } = supabase.storage
+      // Create a signed URL for secure access from Edge Functions
+      const { data: signedData, error: signedError } = await supabase.storage
         .from('resumes')
-        .getPublicUrl(data.path);
-
-      setResumeUrl(publicUrl);
-      onResumeUploaded?.(publicUrl);
+        .createSignedUrl(data.path, 3600);
+      if (signedError) throw signedError;
+      const signedUrl = signedData.signedUrl;
+      setResumePath(data.path);
 
       // Invoke resume parsing to inform the user (sending raw text when available)
       try {
@@ -110,22 +110,40 @@ const ResumeUpload = ({ onResumeUploaded, currentResume }: ResumeUploadProps) =>
           rawContent = await extractPdfText(file);
         } else if (file.type.startsWith('text/')) {
           rawContent = await file.text();
+        } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+          try {
+            const arrayBuffer = await file.arrayBuffer();
+            const result = await (mammoth as any).extractRawText({ arrayBuffer });
+            rawContent = result?.value || '';
+          } catch (e) {
+            console.warn('DOCX text extraction failed', e);
+          }
         }
+
         const { data: parsed, error: parseError } = await supabase.functions.invoke('parse-resume', {
-          body: { resumeUrl: publicUrl, rawContent }
+          body: { resumeUrl: signedUrl, rawContent }
         });
         if (parseError) throw parseError;
         const summary = parsed?.summary || 'Your resume was parsed successfully.';
-        const skillsCount = parsed?.analysis?.skills?.length ?? 0;
+        const skills: string[] = parsed?.analysis?.skills ?? [];
         const companiesCount = parsed?.analysis?.companies?.length ?? 0;
+        const skillsPreview = skills.slice(0, 3).join(', ');
+
+        setResumeUrl(signedUrl);
+        onResumeUploaded?.(signedUrl, { rawContent });
+
         toast({
-          title: 'Resume parsed',
-          description: `${summary} Found ${skillsCount} skills and ${companiesCount} companies.`,
+          title: skills.length > 0 ? 'Resume parsed' : 'Resume parsed (limited data)',
+          description: skills.length > 0
+            ? `${summary} Top skills: ${skillsPreview}.`
+            : `${summary} Tip: Upload a text-rich PDF or DOCX for best results.`,
         });
       } catch (e: any) {
         console.warn('Resume parse function failed:', e?.message || e);
+        setResumeUrl(signedUrl);
+        onResumeUploaded?.(signedUrl, { rawContent: '' });
         toast({
-          title: 'Resume uploaded successfully',
+          title: 'Resume uploaded',
           description: 'We will tailor questions to your resume.',
         });
       }
@@ -139,7 +157,7 @@ const ResumeUpload = ({ onResumeUploaded, currentResume }: ResumeUploadProps) =>
     } finally {
       setUploading(false);
     }
-  }, [user, toast, onResumeUploaded, resumeUrl]);
+  }, [user, toast, onResumeUploaded, resumePath, extractPdfText]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -154,10 +172,18 @@ const ResumeUpload = ({ onResumeUploaded, currentResume }: ResumeUploadProps) =>
   });
 
   const deleteResume = async () => {
-    if (!user || !resumeUrl) return;
+    if (!user || (!resumeUrl && !resumePath)) return;
 
     try {
-      const path = resumeUrl.split('/').slice(-2).join('/'); // Get user_id/filename
+      let path = resumePath;
+      if (!path && resumeUrl) {
+        const after = resumeUrl.split('/resumes/')[1]?.split('?')[0];
+        if (!after) throw new Error('Could not resolve resume path');
+        path = after;
+      }
+
+      if (!path) throw new Error('Missing resume path');
+
       const { error } = await supabase.storage
         .from('resumes')
         .remove([path]);
@@ -165,7 +191,8 @@ const ResumeUpload = ({ onResumeUploaded, currentResume }: ResumeUploadProps) =>
       if (error) throw error;
 
       setResumeUrl(null);
-      onResumeUploaded?.('');
+      setResumePath(null);
+      onResumeUploaded?.('', { rawContent: '' });
 
       toast({
         title: "Resume deleted",
@@ -181,9 +208,13 @@ const ResumeUpload = ({ onResumeUploaded, currentResume }: ResumeUploadProps) =>
     }
   };
 
-  const viewResume = () => {
-    if (resumeUrl) {
-      window.open(resumeUrl, '_blank');
+  const viewResume = async () => {
+    if (!user || !resumePath) return;
+    const { data: signed } = await supabase.storage
+      .from('resumes')
+      .createSignedUrl(resumePath, 600);
+    if (signed?.signedUrl) {
+      window.open(signed.signedUrl, '_blank');
     }
   };
 
