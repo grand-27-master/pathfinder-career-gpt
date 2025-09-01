@@ -8,6 +8,15 @@ import { useToast } from "@/hooks/use-toast";
 import { useDropzone } from "react-dropzone";
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 import mammoth from 'mammoth';
+// @ts-ignore - Vite worker import for PDF.js
+import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker';
+
+// Initialize PDF.js worker (once per module)
+try {
+  (GlobalWorkerOptions as any).workerPort = new (PdfWorker as any)();
+} catch (e) {
+  console.warn('Failed to initialize PDF.js worker', e);
+}
 
 interface ResumeUploadProps {
   onResumeUploaded?: (resumeUrl: string, extra?: { rawContent?: string; detectedRole?: string }) => void;
@@ -24,7 +33,7 @@ const [uploading, setUploading] = useState(false);
   // Extract text from PDF in-browser for accurate parsing
   const extractPdfText = useCallback(async (file: File): Promise<string> => {
     try {
-      GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.worker.min.js";
+      // Worker is initialized at module scope for Vite
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await (getDocument({ data: arrayBuffer }) as any).promise;
       let text = "";
