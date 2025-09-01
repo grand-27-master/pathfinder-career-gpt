@@ -128,6 +128,20 @@ const Interviews = () => {
     };
   }, []);
 
+  // Load persisted resume data on mount
+  useEffect(() => {
+    try {
+      const storedUrl = localStorage.getItem('resumeUrl');
+      const storedRaw = localStorage.getItem('resumeRaw');
+      const storedRole = localStorage.getItem('detectedRole');
+      if (storedUrl && !resumeUrl) setResumeUrl(storedUrl);
+      if (storedRaw && !resumeRaw) setResumeRaw(storedRaw);
+      if (storedRole && !selectedRole) setSelectedRole(storedRole);
+    } catch (e) {
+      console.warn('Unable to access localStorage', e);
+    }
+  }, []);
+
   const addMessage = (type: 'user' | 'ai', content: string) => {
     const newMessage: Message = {
       id: Date.now().toString(),
@@ -153,8 +167,8 @@ const Interviews = () => {
           conversationHistory,
           role: selectedRole,
           interviewType: selectedInterviewType,
-          resumeUrl: resumeUrl || null,
-          rawContent: resumeRaw || null
+          resumeUrl: resumeUrl || localStorage.getItem('resumeUrl') || null,
+          rawContent: resumeRaw || localStorage.getItem('resumeRaw') || null
         }
       });
 
@@ -192,7 +206,7 @@ const Interviews = () => {
 
       const utterance = new SpeechSynthesisUtterance(text);
       // Updated voice settings: faster and brighter
-      utterance.rate = 1.25;  // 1.25x speed
+      utterance.rate = 1.0;  // 1.0x speed
       utterance.pitch = 1.3;  // slightly higher pitch for a more feminine tone
       utterance.volume = 1;
 
@@ -403,7 +417,19 @@ const Interviews = () => {
 
               <div className="space-y-6">
                 <ResumeUpload 
-                  onResumeUploaded={(url, extra) => { setResumeUrl(url); setResumeRaw(extra?.rawContent || ''); if (extra?.detectedRole) setSelectedRole(extra.detectedRole); }}
+                  onResumeUploaded={(url, extra) => {
+                    setResumeUrl(url);
+                    setResumeRaw(extra?.rawContent || '');
+                    if (extra?.detectedRole) setSelectedRole(extra.detectedRole);
+                    try {
+                      localStorage.setItem('resumeUrl', url);
+                      if (typeof extra?.rawContent !== 'undefined') {
+                        if (extra.rawContent) localStorage.setItem('resumeRaw', extra.rawContent);
+                        else localStorage.removeItem('resumeRaw');
+                      }
+                      if (extra?.detectedRole) localStorage.setItem('detectedRole', extra.detectedRole);
+                    } catch (e) { console.warn('localStorage write failed', e); }
+                  }}
                   currentResume={resumeUrl}
                 />
               </div>

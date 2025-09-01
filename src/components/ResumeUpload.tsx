@@ -140,6 +140,12 @@ const [uploading, setUploading] = useState(false);
 
         setResumeUrl(signedUrl);
         onResumeUploaded?.(signedUrl, { rawContent, detectedRole });
+        try {
+          localStorage.setItem('resumeUrl', signedUrl);
+          if (rawContent) localStorage.setItem('resumeRaw', rawContent);
+          else localStorage.removeItem('resumeRaw');
+          if (detectedRole) localStorage.setItem('detectedRole', detectedRole);
+        } catch (e) { console.warn('localStorage write failed', e); }
 
         const roleText = detectedRole ? ` Detected role: ${detectedRole}.` : '';
         toast({
@@ -150,6 +156,11 @@ const [uploading, setUploading] = useState(false);
         console.warn('Resume parse function failed:', e?.message || e);
         setResumeUrl(signedUrl);
         onResumeUploaded?.(signedUrl, { rawContent: '' });
+        try {
+          localStorage.setItem('resumeUrl', signedUrl);
+          localStorage.removeItem('resumeRaw');
+          localStorage.removeItem('detectedRole');
+        } catch (e2) { console.warn('localStorage write failed', e2); }
         toast({
           title: 'Resume uploaded',
           description: 'We will tailor questions to your resume.',
@@ -201,6 +212,11 @@ const [uploading, setUploading] = useState(false);
       setResumeUrl(null);
       setResumePath(null);
       onResumeUploaded?.('', { rawContent: '' });
+      try {
+        localStorage.removeItem('resumeUrl');
+        localStorage.removeItem('resumeRaw');
+        localStorage.removeItem('detectedRole');
+      } catch (e) { console.warn('localStorage write failed', e); }
 
       toast({
         title: "Resume deleted",
