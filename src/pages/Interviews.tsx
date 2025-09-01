@@ -194,19 +194,28 @@ const Interviews = () => {
       return;
     }
 
-    if (!selectedRole || !selectedInterviewType) {
+    if (!selectedInterviewType) {
       toast({
         title: "Please complete setup",
-        description: "Upload your resume for role detection and choose an interview type",
+        description: "Choose an interview type to continue",
         variant: "destructive",
       });
       return;
     }
 
-    if (!resumeUrl) {
+    if (!resumeUrl && !resumeRaw) {
       toast({
-        title: "Resume required",
-        description: "Upload your resume first. Questions will be based strictly on it.",
+        title: "Resume Required",
+        description: "Please upload your resume first. All interview questions are based on your resume content.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedRole) {
+      toast({
+        title: "Role Not Detected",
+        description: "Please upload a detailed resume so we can detect your role.",
         variant: "destructive",
       });
       return;
@@ -215,8 +224,8 @@ const Interviews = () => {
     setInterviewStarted(true);
     setInterviewStartTime(new Date());
     
-    // Immediately ask the first tailored question based on the resume
-    await getAIResponse('');
+    // Start with first question based on resume
+    await getAIResponse('Begin the interview with the first question based on my resume.');
   };
 
   const startListening = () => {

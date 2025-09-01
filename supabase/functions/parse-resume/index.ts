@@ -43,133 +43,220 @@ function analyzeResume(content: string): {
   jobTitles: string[];
   achievements: string[];
 } {
+  console.log('Analyzing resume content length:', content.length);
+  
+  // Early return if content is too short
+  if (!content || content.trim().length < 20) {
+    console.log('Content too short for analysis');
+    return { skills: [], experience: [], education: [], projects: [], companies: [], jobTitles: [], achievements: [] };
+  }
+
   const lowerContent = content.toLowerCase();
   // Normalize content for robust matching
   const normalized = content
-    .replace(/[\u2010-\u2015]/g, '-') // dashes
-    .replace(/[·•]/g, ' ')
-    .replace(/\s+/g, ' ');
+    .replace(/[\u2010-\u2015]/g, '-') // normalize dashes
+    .replace(/[·•]/g, ' ') // replace bullets with spaces
+    .replace(/\s+/g, ' ') // normalize whitespace
+    .trim();
 
-  // Robust skill detection using regex patterns with common variations
-  const skillPatterns: Record<string, RegExp> = {
-    'JavaScript': /\b(java\s*script|javascript|js(?!on))\b/i,
-    'TypeScript': /\b(type\s*script|typescript|ts(?!ql))\b/i,
-    'Python': /\bpython\b/i,
-    'Java': /\bjava\b/i,
-    'React': /\breact(\.js)?\b/i,
-    'Node.js': /\bnode(\.js)?|nodejs\b/i,
-    'SQL': /\bsql\b/i,
-    'PostgreSQL': /\b(postgres|postgresql)\b/i,
-    'MongoDB': /\bmongo\s*db|mongodb\b/i,
-    'GraphQL': /\bgraphql\b/i,
-    'REST API': /\brest(ful)?\s*api\b/i,
-    'AWS': /\baws|amazon\s+web\s+services\b/i,
-    'Azure': /\bazure\b/i,
-    'GCP': /\b(gcp|google\s+cloud)\b/i,
-    'Docker': /\bdocker\b/i,
-    'Kubernetes': /\bk8s|kubernetes\b/i,
-    'Git': /\bgit\b/i,
-    'Linux': /\blinux\b/i,
-    'CI/CD': /\bci\s*\/\s*cd|continuous\s+integration|continuous\s+delivery\b/i,
-    'Jenkins': /\bjenkins\b/i,
-    'TensorFlow': /\btensor\s*flow|tensorflow\b/i,
-    'PyTorch': /\bpytorch\b/i,
-    'Pandas': /\bpandas\b/i,
-    'NumPy': /\bnumpy\b/i,
-    'Scikit-learn': /\bscikit\s*-?learn|sklearn\b/i,
-    'HTML': /\bhtml\b/i,
-    'CSS': /\bcss\b/i,
-    'C++': /\bc\+\+\b/i,
-    'C#': /\bc#|csharp\b/i,
-    '.NET': /\b\.net|dotnet\b/i,
-    'Django': /\bdjango\b/i,
-    'Flask': /\bflask\b/i,
-    'Express': /\bexpress(\.js)?\b/i,
-    'Spring': /\bspring\b/i,
-    'Firebase': /\bfirebase\b/i,
-    'Redis': /\bredis\b/i,
-    'Jira': /\bjira\b/i,
-    'Tableau': /\btableau\b/i,
+  console.log('Normalized content preview:', normalized.substring(0, 300));
+
+  // Enhanced skill detection with more comprehensive patterns
+  const skillPatterns: Record<string, RegExp[]> = {
+    'JavaScript': [/\b(java\s*script|javascript|js(?!\w))\b/gi, /\bnode\s*js\b/gi],
+    'TypeScript': [/\b(type\s*script|typescript|ts(?!ql))\b/gi],
+    'Python': [/\bpython\b/gi, /\bdjango\b/gi, /\bflask\b/gi, /\bfastapi\b/gi],
+    'Java': [/\bjava(?!\s*script)\b/gi, /\bspring\b/gi],
+    'React': [/\breact(\.js)?\b/gi, /\bnext\.js\b/gi, /\bgatsby\b/gi],
+    'Vue.js': [/\bvue(\.js)?\b/gi, /\bnuxt\b/gi],
+    'Angular': [/\bangular\b/gi],
+    'Node.js': [/\bnode(\.js)?|nodejs\b/gi, /\bexpress(\.js)?\b/gi],
+    'SQL': [/\bsql\b/gi, /\bmysql\b/gi, /\bsqlite\b/gi],
+    'PostgreSQL': [/\b(postgres|postgresql|psql)\b/gi],
+    'MongoDB': [/\bmongo\s*db|mongodb\b/gi, /\bmongoose\b/gi],
+    'GraphQL': [/\bgraphql\b/gi, /\bapollo\b/gi],
+    'REST API': [/\brest(ful)?\s*api\b/gi, /\bapi\s*development\b/gi],
+    'AWS': [/\baws|amazon\s+web\s+services\b/gi, /\bec2\b/gi, /\bs3\b/gi, /\blambda\b/gi],
+    'Azure': [/\bazure\b/gi, /\bmicrosoft\s+azure\b/gi],
+    'GCP': [/\b(gcp|google\s+cloud)\b/gi],
+    'Docker': [/\bdocker\b/gi, /\bcontainer\b/gi],
+    'Kubernetes': [/\bk8s|kubernetes\b/gi, /\bhelm\b/gi],
+    'Git': [/\bgit\b/gi, /\bgithub\b/gi, /\bgitlab\b/gi],
+    'Linux': [/\blinux\b/gi, /\bunix\b/gi, /\bubuntu\b/gi],
+    'CI/CD': [/\bci\s*\/\s*cd|continuous\s+integration|continuous\s+delivery\b/gi],
+    'Jenkins': [/\bjenkins\b/gi],
+    'TensorFlow': [/\btensor\s*flow|tensorflow\b/gi],
+    'PyTorch': [/\bpytorch\b/gi],
+    'Pandas': [/\bpandas\b/gi],
+    'NumPy': [/\bnumpy\b/gi],
+    'Scikit-learn': [/\bscikit\s*-?learn|sklearn\b/gi],
+    'HTML': [/\bhtml\b/gi, /\bhtml5\b/gi],
+    'CSS': [/\bcss\b/gi, /\bcss3\b/gi, /\bsass\b/gi, /\bless\b/gi],
+    'Tailwind CSS': [/\btailwind\s*css|tailwindcss\b/gi],
+    'Bootstrap': [/\bbootstrap\b/gi],
+    'C++': [/\bc\+\+\b/gi],
+    'C#': [/\bc#|csharp\b/gi],
+    '.NET': [/\b\.net|dotnet\b/gi],
+    'Django': [/\bdjango\b/gi],
+    'Flask': [/\bflask\b/gi],
+    'Express': [/\bexpress(\.js)?\b/gi],
+    'Spring': [/\bspring\b/gi],
+    'Firebase': [/\bfirebase\b/gi],
+    'Redis': [/\bredis\b/gi],
+    'Jira': [/\bjira\b/gi],
+    'Tableau': [/\btableau\b/gi],
+    'Power BI': [/\bpower\s*bi\b/gi],
+    'Figma': [/\bfigma\b/gi],
+    'Photoshop': [/\bphotoshop\b/gi],
+    'Machine Learning': [/\bmachine\s*learning|ml\b/gi],
+    'Artificial Intelligence': [/\bartificial\s*intelligence|ai\b/gi],
+    'Data Science': [/\bdata\s*science\b/gi],
+    'DevOps': [/\bdevops\b/gi],
+    'Agile': [/\bagile\b/gi],
+    'Scrum': [/\bscrum\b/gi]
   };
 
-  const skills = Object.entries(skillPatterns)
-    .filter(([_, rx]) => rx.test(normalized))
-    .map(([name]) => name);
+  const skills: string[] = [];
+  Object.entries(skillPatterns).forEach(([skill, patterns]) => {
+    const found = patterns.some(pattern => pattern.test(normalized));
+    if (found) {
+      skills.push(skill);
+    }
+  });
 
+  console.log('Found skills:', skills);
+
+  // Enhanced experience extraction
   const experiencePatterns = [
     /(\d+)\+?\s*years?\s+(?:of\s+)?experience/gi,
     /(\d+)\+?\s*years?\s+(?:working\s+)?(?:with|in|as)/gi,
-    /(\d+)\+?\s*year\s+(?:of\s+)?experience/gi
+    /(\d+)\+?\s*year\s+(?:of\s+)?experience/gi,
+    /(\d{4})\s*[-–]\s*(\d{4}|present|current)/gi,
+    /(\d{4})\s*[-–]\s*(\d{4})/gi
   ];
   const experience: string[] = [];
   experiencePatterns.forEach(p => {
     const matches = content.match(p);
-    if (matches) experience.push(...matches.slice(0,3));
+    if (matches) experience.push(...matches.slice(0,5));
   });
+  console.log('Found experience:', experience);
 
+  // Enhanced job title extraction
   const jobTitlePatterns = [
-    /(?:senior|lead|principal|staff|manager|director|head of|chief)\s+\w+/gi,
-    /(?:software|frontend|backend|full stack|data|machine learning|devops|cloud)\s+(?:engineer|developer|scientist|analyst)/gi,
-    /(?:product|project)\s+manager/gi,
-    /(?:ui|ux)\s+designer/gi
+    /(?:senior|lead|principal|staff|manager|director|head\s+of|chief|vp|vice\s+president)\s+[\w\s]+/gi,
+    /(?:software|frontend|backend|full\s*stack|data|machine\s+learning|devops|cloud|platform)\s+(?:engineer|developer|scientist|analyst|architect)/gi,
+    /(?:product|project|program|engineering)\s+manager/gi,
+    /(?:ui|ux|product)\s+designer/gi,
+    /(?:technical|team|tech)\s+lead/gi,
+    /(?:qa|quality\s+assurance)\s+engineer/gi,
+    /(?:business|data)\s+analyst/gi,
+    /(?:intern|internship|co-op)/gi
   ];
   const jobTitles: string[] = [];
   jobTitlePatterns.forEach(p => {
     const matches = content.match(p);
-    if (matches) jobTitles.push(...matches.slice(0,3));
+    if (matches) {
+      matches.forEach(match => {
+        if (match.length > 3 && match.length < 50) {
+          jobTitles.push(match.trim());
+        }
+      });
+    }
   });
+  console.log('Found job titles:', jobTitles);
 
+  // Enhanced education extraction
   const educationPatterns = [
-    /(?:bachelor|master|phd|doctorate|b\.?s\.?|m\.?s\.?|ph\.?d\.?)\s+(?:in|of)?\s*([a-z\s]+)/gi,
-    /(?:university|college|institute)\s+of\s+([a-z\s]+)/gi,
-    /computer science|software engineering|electrical engineering|mathematics|physics|business/gi
+    /(?:bachelor|master|phd|doctorate|b\.?s\.?|m\.?s\.?|ph\.?d\.?|mba)\s+(?:in|of|degree)?\s*([a-z\s]+)/gi,
+    /(?:university|college|institute|school)\s+of\s+([a-z\s]+)/gi,
+    /computer science|software engineering|electrical engineering|mathematics|physics|business|economics|finance|marketing/gi,
+    /(?:graduated|degree|diploma|certification)\s+(?:from|in)\s+([a-z\s]+)/gi
   ];
   const education: string[] = [];
   educationPatterns.forEach(p => {
     const matches = content.match(p);
-    if (matches) education.push(...matches.slice(0,3));
+    if (matches) {
+      matches.forEach(match => {
+        if (match.length > 5 && match.length < 100) {
+          education.push(match.trim());
+        }
+      });
+    }
   });
+  console.log('Found education:', education);
 
+  // Enhanced project extraction
   const projectPatterns = [
-    /(?:built|developed|created|designed|implemented|architected)\s+(?:a|an)?\s*([a-z\s]+(?:application|system|platform|website|app|service|api))/gi,
-    /(?:led|managed|coordinated)\s+(?:a|the)?\s*([a-z\s]+(?:project|initiative|team|development))/gi
+    /(?:built|developed|created|designed|implemented|architected|delivered|launched)\s+(?:a|an)?\s*([a-z\s]+(?:application|system|platform|website|app|service|api|dashboard|tool|feature))/gi,
+    /(?:led|managed|coordinated|oversaw)\s+(?:a|the)?\s*([a-z\s]+(?:project|initiative|team|development|migration|integration))/gi,
+    /project\s*[:\-]?\s*([a-z\s]+(?:application|system|platform|website|app|service|api|dashboard|tool))/gi,
+    /(?:worked\s+on|contributed\s+to)\s+(?:a|the)?\s*([a-z\s]+(?:application|system|platform|project|initiative))/gi
   ];
   const projects: string[] = [];
   projectPatterns.forEach(p => {
     const matches = [...content.matchAll(p)];
-    matches.forEach(m => { if (m[1] && m[1].length > 3) projects.push(m[1].trim()); });
+    matches.forEach(m => { 
+      if (m[1] && m[1].length > 5 && m[1].length < 80) {
+        projects.push(m[1].trim()); 
+      }
+    });
   });
+  console.log('Found projects:', projects);
 
+  // Enhanced company extraction
   const companyPatterns = [
-    /(?:at|@)\s+([A-Z][a-zA-Z0-9\s&\.]+(?:Inc|LLC|Corp|Ltd|Co\.?|Technologies|Systems|Solutions|Group)?)/g,
-    /(?:worked|employed|joined)\s+(?:at|with)\s+([A-Z][a-zA-Z0-9\s&\.]+)/g
+    /(?:at|@)\s+([A-Z][a-zA-Z0-9\s&\.]+(?:Inc|LLC|Corp|Ltd|Co\.?|Technologies|Systems|Solutions|Group|Labs|Consulting)?)/g,
+    /(?:worked|employed|joined|contractor)\s+(?:at|with|for)\s+([A-Z][a-zA-Z0-9\s&\.]+)/g,
+    /(?:company|employer|organization)\s*[:\-]?\s*([A-Z][a-zA-Z0-9\s&\.]+)/g,
+    /([A-Z][a-zA-Z0-9\s&\.]+(?:Inc|LLC|Corp|Ltd|Co\.?|Technologies|Systems|Solutions|Group|Labs))\s*[-–]\s*\d{4}/g
   ];
   const companies: string[] = [];
   companyPatterns.forEach(p => {
     const matches = [...content.matchAll(p)];
-    matches.forEach(m => { if (m[1] && m[1].length > 2 && m[1].length < 50) companies.push(m[1].trim()); });
+    matches.forEach(m => { 
+      if (m[1] && m[1].length > 2 && m[1].length < 60) {
+        const company = m[1].trim();
+        // Filter out common false positives
+        if (!company.match(/^(Experience|Skills|Education|Projects?|Work|Employment|Professional|Career|Summary|Objective)$/i)) {
+          companies.push(company); 
+        }
+      }
+    });
   });
+  console.log('Found companies:', companies);
 
+  // Enhanced achievement extraction
   const achievementPatterns = [
-    /(?:increased|improved|reduced|optimized|enhanced)\s+([^\.]+)/gi,
-    /(?:\d+%|\$\d+|x\d+|\d+\s*(?:users|customers|revenue|performance|efficiency))/gi,
-    /(?:award|recognition|certification|promoted|achieved)/gi
+    /(?:increased|improved|reduced|optimized|enhanced|boosted|accelerated|streamlined|automated)\s+([^\.]{10,100})/gi,
+    /(?:\d+%|\$\d+[\d,]*|x\d+|\d+\s*(?:users|customers|clients|revenue|performance|efficiency|speed|time|cost|bugs|errors))/gi,
+    /(?:award|recognition|certification|promoted|achieved|accomplished|delivered|exceeded|outperformed)\s+([^\.]{5,80})/gi,
+    /(?:responsible\s+for|led\s+to|resulted\s+in)\s+([^\.]{10,100})/gi
   ];
   const achievements: string[] = [];
   achievementPatterns.forEach(p => {
     const matches = content.match(p);
-    if (matches) achievements.push(...matches.slice(0,3));
+    if (matches) {
+      matches.forEach(match => {
+        if (match.length > 10 && match.length < 150) {
+          achievements.push(match.trim());
+        }
+      });
+    }
   });
+  console.log('Found achievements:', achievements);
 
-  return {
-    skills: [...new Set(skills)],
-    experience: [...new Set(experience)].slice(0,5),
-    education: [...new Set(education)].slice(0,3),
-    projects: [...new Set(projects)].slice(0,5),
-    companies: [...new Set(companies)].slice(0,3),
-    jobTitles: [...new Set(jobTitles)].slice(0,3),
-    achievements: [...new Set(achievements)].slice(0,3)
+  const result = {
+    skills: [...new Set(skills)].slice(0, 15),
+    experience: [...new Set(experience)].slice(0, 8),
+    education: [...new Set(education)].slice(0, 5),
+    projects: [...new Set(projects)].slice(0, 8),
+    companies: [...new Set(companies)].slice(0, 5),
+    jobTitles: [...new Set(jobTitles)].slice(0, 5),
+    achievements: [...new Set(achievements)].slice(0, 8)
   };
+  
+  console.log('Final analysis result:', result);
+  return result;
 }
 
 serve(async (req) => {

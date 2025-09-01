@@ -293,8 +293,8 @@ function generateFallbackResponse(
   
   // Enforce resume-driven questioning only
   const hasResume = !!resumeContent && resumeContent.length > 50;
-  if (!hasResume) {
-    return "To begin, please upload your resume. I ask questions strictly based on your resume content to keep this interview personalized.";
+  if (!hasResume || messageCount === 0) {
+    return "To begin this interview, please upload your resume first. I generate all questions based specifically on your resume content to make this interview personalized and relevant to your experience.";
   }
 
   // Build a resume-based fallback if earlier branches didn't return
