@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,10 +62,34 @@ const Interviews = () => {
   
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
+
+  // Helper to pick a female English voice if available
+  const pickPreferredVoice = (): SpeechSynthesisVoice | null => {
+    try {
+      const voices = window.speechSynthesis.getVoices?.() || [];
+      const preferNames = [
+        'Google UK English Female',
+        'Google US English',
+        'Samantha','Victoria','Karen','Tessa','Moira','Serena','Allison','Ava','Susan','Zira'
+      ];
+      const byFemale = voices.find(v => /female/i.test(v.name) && v.lang?.startsWith('en'));
+      const byPreferred = voices.find(v => preferNames.some(n => v.name.includes(n)));
+      const byEnglish = voices.find(v => v.lang?.startsWith('en'));
+      return byFemale || byPreferred || byEnglish || voices[0] || null;
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     // Initialize Speech APIs
     if ('speechSynthesis' in window) {
       synthRef.current = window.speechSynthesis;
+      // Warm voices cache
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        console.log('Voices loaded:', window.speechSynthesis.getVoices().map(v => v.name));
+      };
     }
 
     if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
@@ -166,9 +191,16 @@ const Interviews = () => {
       synthRef.current.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
+      // Updated voice settings: faster and brighter
+      utterance.rate = 1.25;  // 1.25x speed
+      utterance.pitch = 1.3;  // slightly higher pitch for a more feminine tone
       utterance.volume = 1;
+
+      // Prefer a female English voice if available
+      const voice = pickPreferredVoice();
+      if (voice) {
+        utterance.voice = voice;
+      }
 
       utterance.onstart = () => {
         setIsSpeaking(true);

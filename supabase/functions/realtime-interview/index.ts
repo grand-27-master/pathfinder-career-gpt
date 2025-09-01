@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -187,9 +188,14 @@ function generateFallbackResponse(
 ): string {
   const messageCount = conversationHistory.length;
   const lowerMessage = message.toLowerCase();
-  
-  // If we have resume content, use it to generate deeply personalized questions
-  if (resumeContent && resumeContent.length > 50) {
+
+  // Log resume presence for debugging
+  const contentLen = (resumeContent || '').trim().length;
+  console.log('Fallback generator - resume length:', contentLen, 'history length:', messageCount);
+
+  // If we have resume content, use it to generate personalized questions
+  // Lower threshold from 50 -> 20 to accept shorter extractions
+  if (resumeContent && contentLen > 20) {
     const resumeAnalysis = analyzeResume(resumeContent);
     console.log('Resume analysis results:', resumeAnalysis);
     
@@ -291,14 +297,14 @@ function generateFallbackResponse(
     }
   }
   
-  // Enforce resume-driven questioning only
-  const hasResume = !!resumeContent && resumeContent.length > 50;
-  if (!hasResume || messageCount === 0) {
+  // Only gate on the resume presence, not conversation history
+  const hasResume = !!resumeContent && contentLen > 20;
+  if (!hasResume) {
     return "To begin this interview, please upload your resume first. I generate all questions based specifically on your resume content to make this interview personalized and relevant to your experience.";
   }
 
   // Build a resume-based fallback if earlier branches didn't return
-  const resumeAnalysis = analyzeResume(resumeContent);
+  const resumeAnalysis = analyzeResume(resumeContent!);
   const { skills = [], projects = [], companies = [], jobTitles = [], experience = [], achievements = [] } = resumeAnalysis as any;
 
   // Light defaults by interview type, always grounded in resume
@@ -371,7 +377,7 @@ serve(async (req) => {
       resumeContent = rawContent;
     } else if (resumeUrl) {
       resumeContent = await extractResumeContent(resumeUrl);
-      console.log('Resume content extracted:', resumeContent.substring(0, 200) + '...');
+      console.log('Resume content extracted length:', (resumeContent || '').length);
     }
     
     // Generate response using enhanced fallback method
